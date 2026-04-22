@@ -35,7 +35,7 @@ jobs:
           echo "DOCKER_DB_URL=${{ secrets.DOCKER_DB_URL }}" >> .env
           echo "PORT=${{ secrets.PORT }}" >> .env
           echo "TUNNEL_TOKEN=${{ secrets.TUNNEL_TOKEN }}" >> .env
-          
+
       - name: Build and Deploy with Docker Compose
         run: |
           # --build ensures images are recreated if Go code changed
@@ -43,7 +43,7 @@ jobs:
           docker compose up -d --build
       
       - name: shutdown services
-        if: always() # Ensure this runs even if the previous steps fail
+        if: failure() # Ensure this runs even if the previous steps fail
         run: docker compose down
 
       - name: Cleanup old images
