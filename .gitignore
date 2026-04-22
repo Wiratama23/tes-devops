@@ -9,8 +9,6 @@
 *.dll
 *.dylib
 
-# Go mod & sum
-go.sum
 
 # Binaries
 /cmd/api/api
