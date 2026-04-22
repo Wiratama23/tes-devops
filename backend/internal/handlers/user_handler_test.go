@@ -118,7 +118,9 @@ func TestUserHandlerCreateUser(t *testing.T) {
 	}
 
 	var result models.User
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.Username != "testuser" || result.Email != "test@example.com" {
 		t.Errorf("User data mismatch: got %v", result)
 	}
@@ -149,7 +151,9 @@ func TestUserHandlerGetAllUsers(t *testing.T) {
 	}
 
 	var result []*models.User
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result == nil {
 		t.Error("Expected users list, got nil")
 	}
@@ -185,7 +189,9 @@ func TestUserHandlerGetUser(t *testing.T) {
 	}
 
 	var result models.User
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.UID != user.UID {
 		t.Errorf("Expected user %s, got %s", user.UID, result.UID)
 	}
@@ -227,7 +233,9 @@ func TestUserHandlerUpdateUser(t *testing.T) {
 	}
 
 	var result models.User
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.Username != "updateduser" || result.Email != "updated@example.com" {
 		t.Errorf("User update failed: got %v", result)
 	}

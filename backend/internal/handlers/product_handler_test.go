@@ -55,7 +55,9 @@ func TestProductHandlerCreateProduct(t *testing.T) {
 	}
 
 	var result models.Product
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.ProductID != "SKU10001" || result.ProductName != "Test Product" {
 		t.Errorf("Product data mismatch: got %v", result)
 	}
@@ -101,7 +103,9 @@ func TestProductHandlerCreateProductWithDefaultImage(t *testing.T) {
 	}
 
 	var result models.Product
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.ImagePath != "assets/default_image.jpg" {
 		t.Errorf("Expected default image path, got %s", result.ImagePath)
 	}
@@ -132,7 +136,9 @@ func TestProductHandlerGetAllProducts(t *testing.T) {
 	}
 
 	var result []*models.Product
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result == nil {
 		t.Error("Expected products list, got nil")
 	}
@@ -171,7 +177,9 @@ func TestProductHandlerGetProductByID(t *testing.T) {
 	}
 
 	var result models.Product
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.ProductID != product.ProductID {
 		t.Errorf("Expected product %s, got %s", product.ProductID, result.ProductID)
 	}
@@ -219,7 +227,9 @@ func TestProductHandlerUpdateProduct(t *testing.T) {
 	}
 
 	var result models.Product
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.ProductName != "Updated Product" || result.ProductQuantity != 200 {
 		t.Errorf("Product update failed: got %v", result)
 	}
