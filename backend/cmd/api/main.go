@@ -109,7 +109,9 @@ func main() {
 
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusOK)
-        w.Write([]byte("OK"))
+        if _, err := w.Write([]byte("OK")); err != nil {
+			log.Printf("health: failed to write response: %v", err)
+        }
     })
 
 	// Wrap router with Coraza WAF
@@ -127,7 +129,11 @@ func runMigrations(databaseURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
-	defer db.Close()
+	defer func() {
+		if cerr := db.Close(); cerr != nil {
+			log.Printf("failed to close migration db: %v", cerr)
+		}
+	}()
 
 	if err := goose.Up(db, "migrations"); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

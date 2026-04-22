@@ -50,7 +50,9 @@ func TestArticleHandlerCreateArticle(t *testing.T) {
 	}
 
 	var result models.Article
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.Title != "Test Article" || result.ArticleText != "This is a test article" {
 		t.Errorf("Article data mismatch: got %v", result)
 	}
@@ -81,7 +83,9 @@ func TestArticleHandlerGetAllArticles(t *testing.T) {
 	}
 
 	var result []*models.Article
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result == nil {
 		t.Error("Expected articles list, got nil")
 	}
@@ -120,7 +124,10 @@ func TestArticleHandlerGetArticle(t *testing.T) {
 	}
 
 	var result models.Article
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
 	if result.ArticlesID != article.ArticlesID {
 		t.Errorf("Expected article %d, got %d", article.ArticlesID, result.ArticlesID)
 	}
@@ -144,8 +151,12 @@ func TestArticleHandlerGetUserArticles(t *testing.T) {
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
 	articleRepo := repository.NewArticleRepository(pool)
-	articleRepo.Create(ctx, user.UID, "Article 1", "Content 1")
-	articleRepo.Create(ctx, user.UID, "Article 2", "Content 2")
+	if _, err := articleRepo.Create(ctx, user.UID, "Article 1", "Content 1"); err != nil {
+		t.Fatalf("failed to create article 1: %v", err)
+	}
+	if _, err := articleRepo.Create(ctx, user.UID, "Article 2", "Content 2"); err != nil {
+		t.Fatalf("failed to create article 2: %v", err)
+	}
 
 	// Get user articles
 	handler := NewArticleHandler(pool)
@@ -160,7 +171,9 @@ func TestArticleHandlerGetUserArticles(t *testing.T) {
 	}
 
 	var result []*models.Article
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if len(result) != 2 {
 		t.Errorf("Expected 2 articles, got %d", len(result))
 	}
@@ -205,7 +218,9 @@ func TestArticleHandlerUpdateArticle(t *testing.T) {
 	}
 
 	var result models.Article
-	json.NewDecoder(w.Body).Decode(&result)
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result.Title != "Updated Title" || result.ArticleText != "Updated content" {
 		t.Errorf("Article update failed: got %v", result)
 	}

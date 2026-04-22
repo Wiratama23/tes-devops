@@ -49,7 +49,10 @@ func (h *ArticleHandler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(article)
+	if err := json.NewEncoder(w).Encode(article); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetArticle handles GET /articles/{id}
@@ -68,7 +71,11 @@ func (h *ArticleHandler) GetArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(article)
+	if err := json.NewEncoder(w).Encode(article); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
 }
 
 // GetAllArticles handles GET /articles
@@ -84,7 +91,10 @@ func (h *ArticleHandler) GetAllArticles(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(articles)
+	if err := json.NewEncoder(w).Encode(articles); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}	
 }
 
 // GetUserArticles handles GET /users/{uid}/articles
@@ -107,7 +117,11 @@ func (h *ArticleHandler) GetUserArticles(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(articles)
+	if err := json.NewEncoder(w).Encode(articles); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+
 }
 
 // UpdateArticle handles PUT /articles/{id}
@@ -132,7 +146,10 @@ func (h *ArticleHandler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(article)
+	if err := json.NewEncoder(w).Encode(article); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}	
 }
 
 // DeleteArticle handles DELETE /articles/{id}
