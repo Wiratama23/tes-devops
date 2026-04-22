@@ -23,6 +23,7 @@ jobs:
     needs: golangci
     name: Deploy to Server
     runs-on: self-hosted 
+    environment: devops
 
     steps:
       - name: Checkout code
