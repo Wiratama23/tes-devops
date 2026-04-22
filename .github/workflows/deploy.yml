@@ -23,7 +23,6 @@ jobs:
     needs: golangci
     name: Deploy to Server
     runs-on: self-hosted 
-    environment: devops
 
     steps:
       - name: Checkout code
@@ -31,8 +30,12 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo "${{ secrets.ENV_FILE }}" > .env
-
+          touch .env
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "DOCKER_DB_URL=${{ secrets.DOCKER_DB_URL }}" >> .env
+          echo "PORT=${{ secrets.PORT }}" >> .env
+          echo "TUNNEL_TOKEN=${{ secrets.TUNNEL_TOKEN }}" >> .env
+          
       - name: Build and Deploy with Docker Compose
         run: |
           # --build ensures images are recreated if Go code changed
