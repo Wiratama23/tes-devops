@@ -20,6 +20,7 @@ go.sum
 .env
 .env.local
 .env.*.local
+.txt
 
 # IDE
 .vscode/
