@@ -37,6 +37,10 @@ jobs:
           # --build ensures images are recreated if Go code changed
           # -d runs it in the background
           docker compose up -d --build
-          
+      
+      - name: shutdown services
+        if: always() # Ensure this runs even if the previous steps fail
+        run: docker compose down
+
       - name: Cleanup old images
         run: docker image prune -f
