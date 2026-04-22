@@ -41,7 +41,8 @@ to do list:
 8. implement content caching for html with nginx |x|
 9. implement cloudflare tunneling |x| (put into docker container)
 10. implement simple database using sql db |x|
-11. update frontend using next.js | |
-12. vulnerability test (because we didn't use vps) | |
-13. implement auth token on using API | |
-
+11. implement CI/CD pipeline |x|
+12. update frontend using next.js | |
+13. vulnerability test (because we didn't use vps) | |
+14. implement auth token on using API | |
+15. fix my ci/cd incase previous steps are failed. | | (currently it do that, but gonna be fragile when doing new update with current logic.)
