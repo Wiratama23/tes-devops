@@ -179,3 +179,44 @@ func (r *ArticleRepository) Delete(ctx context.Context, articleID int) error {
 
 	return nil
 }
+
+// GetAllWithPagination retrieves articles with pagination (uses date_created index)
+func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, offset int) ([]models.Article, int, error) {
+	// Get total count
+	var totalCount int
+	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM articles").Scan(&totalCount)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count articles: %w", err)
+	}
+
+	query := `
+		SELECT articles_id, uid, title, article_text, date_created, updated_at
+		FROM articles
+		ORDER BY date_created DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.pool.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query articles with pagination: %w", err)
+	}
+	defer rows.Close()
+
+	articles, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (models.Article, error) {
+		var article models.Article
+		err := row.Scan(
+			&article.ArticlesID,
+			&article.UID,
+			&article.Title,
+			&article.ArticleText,
+			&article.DateCreated,
+			&article.UpdatedAt,
+		)
+		return article, err
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to collect articles: %w", err)
+	}
+
+	return articles, totalCount, nil
+}
