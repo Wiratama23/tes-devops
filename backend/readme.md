@@ -145,26 +145,42 @@ Response (201 Created):
 #### 2. Get All Articles
 ```
 GET /articles
+GET /articles?limit=10
+GET /articles?limit=10&offset=0
+
+Query Parameters:
+- limit: Number of articles to fetch (default: 50, max recommended: 100)
+- offset: Number of articles to skip (default: 0)
+
+Examples:
+- GET /articles - Fetch 10 random articles
+- GET /articles?limit=25 - Fetch 25 random articles
+- GET /articles?limit=10&offset=10 - Fetch 10 articles skipping the first 10
 
 Response (200 OK):
-[
-  {
-    "articles_id": 1,
-    "uid": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "Getting Started with Go",
-    "article_text": "Go is a powerful modern programming language...",
-    "date_created": "2026-04-19T10:45:00Z",
-    "updated_at": "2026-04-19T10:45:00Z"
-  },
-  {
-    "articles_id": 2,
-    "uid": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "Advanced Go Patterns",
-    "article_text": "In this post we'll explore some advanced patterns...",
-    "date_created": "2026-04-19T11:15:00Z",
-    "updated_at": "2026-04-19T11:15:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "articles_id": 1,
+      "uid": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "Getting Started with Go",
+      "article_text": "Go is a powerful modern programming language...",
+      "date_created": "2026-04-19T10:45:00Z",
+      "updated_at": "2026-04-19T10:45:00Z"
+    },
+    {
+      "articles_id": 2,
+      "uid": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "Advanced Go Patterns",
+      "article_text": "In this post we'll explore some advanced patterns...",
+      "date_created": "2026-04-19T11:15:00Z",
+      "updated_at": "2026-04-19T11:15:00Z"
+    }
+  ],
+  "total_count": 42,
+  "limit": 10,
+  "offset": 0
+}
 ```
 
 #### 3. Get Article by ID
@@ -268,30 +284,46 @@ Response (201 Created):
 #### 2. Get All Products
 ```
 GET /products
+GET /products?limit=25
+GET /products?limit=25&offset=0
+
+Query Parameters:
+- limit: Number of products to fetch (default: 100, max recommended: 200)
+- offset: Number of products to skip (default: 0)
+
+Examples:
+- GET /products - Fetch 10 random products
+- GET /products?limit=25 - Fetch 25 random products
+- GET /products?limit=20&offset=20 - Fetch 20 products skipping the first 20
 
 Response (200 OK):
-[
-  {
-    "product_id": "SKU10001",
-    "product_name": "Premium Coffee Beans",
-    "product_quantity": 100,
-    "product_prices": "29.99",
-    "product_type": "10",
-    "created_at": "2026-04-19T12:00:00Z",
-    "created_by": "550e8400-e29b-41d4-a716-446655440000",
-    "image_path": "assets/coffee.jpg"
-  },
-  {
-    "product_id": "SKU05001",
-    "product_name": "Programming Book",
-    "product_quantity": 50,
-    "product_prices": "49.99",
-    "product_type": "05",
-    "created_at": "2026-04-19T12:15:00Z",
-    "created_by": "550e8400-e29b-41d4-a716-446655440000",
-    "image_path": "assets/book.jpg"
-  }
-]
+{
+  "data": [
+    {
+      "product_id": "SKU10001",
+      "product_name": "Premium Coffee Beans",
+      "product_quantity": 100,
+      "product_prices": "29.99",
+      "product_type": "10",
+      "created_at": "2026-04-19T12:00:00Z",
+      "created_by": "550e8400-e29b-41d4-a716-446655440000",
+      "image_path": "assets/coffee.jpg"
+    },
+    {
+      "product_id": "SKU05001",
+      "product_name": "Programming Book",
+      "product_quantity": 50,
+      "product_prices": "49.99",
+      "product_type": "05",
+      "created_at": "2026-04-19T12:15:00Z",
+      "created_by": "550e8400-e29b-41d4-a716-446655440000",
+      "image_path": "assets/book.jpg"
+    }
+  ],
+  "total_count": 156,
+  "limit": 25,
+  "offset": 0
+}
 ```
 
 #### 3. Get Product by ID

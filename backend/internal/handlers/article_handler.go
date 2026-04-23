@@ -16,6 +16,13 @@ type ArticleHandler struct {
 	repo *repository.ArticleRepository
 }
 
+type PaginatedArticlesResponse struct {
+	Data       []models.Article `json:"data"`
+	TotalCount int              `json:"total_count"`
+	Limit      int              `json:"limit"`
+	Offset     int              `json:"offset"`
+}
+
 func NewArticleHandler(pool *pgxpool.Pool) *ArticleHandler {
 	return &ArticleHandler{
 		repo: repository.NewArticleRepository(pool),
@@ -78,9 +85,28 @@ func (h *ArticleHandler) GetArticle(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// GetAllArticles handles GET /articles
+// GetAllArticles handles GET /articles with optional ?limit and ?offset query parameters
 func (h *ArticleHandler) GetAllArticles(w http.ResponseWriter, r *http.Request) {
-	articles, err := h.repo.GetAll(r.Context())
+	// Parse limit and offset from query parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 50 // default limit
+	offset := 0 // default offset
+
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	if offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	articles, totalCount, err := h.repo.GetAllWithPagination(r.Context(), limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -90,11 +116,18 @@ func (h *ArticleHandler) GetAllArticles(w http.ResponseWriter, r *http.Request) 
 		articles = []models.Article{}
 	}
 
+	resp := PaginatedArticlesResponse{
+		Data:       articles,
+		TotalCount: totalCount,
+		Limit:      limit,
+		Offset:     offset,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(articles); err != nil {
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
-	}	
+	}
 }
 
 // GetUserArticles handles GET /users/{uid}/articles

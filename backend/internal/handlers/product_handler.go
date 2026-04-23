@@ -3,16 +3,25 @@ package handlers
 import (
 	json "github.com/goccy/go-json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
+	"rwiratama.com/m/internal/models"
 	"rwiratama.com/m/internal/repository"
 )
 
 type ProductHandler struct {
 	repo *repository.ProductRepository
+}
+
+type PaginatedProductsResponse struct {
+	Data       []*models.Product `json:"data"`
+	TotalCount int               `json:"total_count"`
+	Limit      int               `json:"limit"`
+	Offset     int               `json:"offset"`
 }
 
 func NewProductHandler(pool *pgxpool.Pool) *ProductHandler {
@@ -82,16 +91,42 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// GetAllProducts handles GET /products
+// GetAllProducts handles GET /products with optional ?limit and ?offset query parameters
 func (h *ProductHandler) GetAllProducts(w http.ResponseWriter, r *http.Request) {
-	products, err := h.repo.GetAll(r.Context())
+	// Parse limit and offset from query parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 100 // default limit
+	offset := 0 // default offset
+
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	if offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	products, totalCount, err := h.repo.GetAllWithPagination(r.Context(), limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	resp := PaginatedProductsResponse{
+		Data:       products,
+		TotalCount: totalCount,
+		Limit:      limit,
+		Offset:     offset,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(products); err != nil {
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
