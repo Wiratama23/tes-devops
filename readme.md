@@ -6,6 +6,11 @@
 - container: docker
 - webserver: nginx
 
+# run dev docker-compose
+docker compose -f docker-compose.dev.yaml up --build
+# or close
+docker compose -f docker-compose.dev.yaml down
+
 #run backend
 go run ./server #running the server module from root
 

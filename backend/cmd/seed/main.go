@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -36,70 +37,46 @@ func main() {
 	articleRepo := repository.NewArticleRepository(pool)
 	productRepo := repository.NewProductRepository(pool)
 
-	// Create sample users
-	user1, err := userRepo.Create(ctx, "alice", "alice@example.com")
-	if err != nil {
-		log.Printf("Error creating user1: %v", err)
-	} else {
-		log.Printf("Created user: %v", user1)
-	}
+	const seedCount = 5000
 
-	user2, err := userRepo.Create(ctx, "bob", "bob@example.com")
-	if err != nil {
-		log.Printf("Error creating user2: %v", err)
-	} else {
-		log.Printf("Created user: %v", user2)
-	}
+	log.Printf("Starting to seed %d records for users, articles, and products...", seedCount)
 
-	// Create sample articles
-	if user1 != nil {
-		article1, err := articleRepo.Create(ctx, user1.UID, "Getting Started with Go", "Go is a modern programming language...")
+	for i := 1; i <= seedCount; i++ {
+		// 1. Generate User
+		username := fmt.Sprintf("user%d", i)
+		email := fmt.Sprintf("user%d@example.com", i)
+
+		user, err := userRepo.Create(ctx, username, email)
 		if err != nil {
-			log.Printf("Error creating article1: %v", err)
-		} else {
-			log.Printf("Created article: %v", article1)
+			log.Printf("Error creating user %d: %v", i, err)
+			continue // Skip article/product creation for this iteration if user creation fails
 		}
 
-		article2, err := articleRepo.Create(ctx, user1.UID, "Advanced Go Patterns", "In this post we'll explore some advanced patterns...")
-		if err != nil {
-			log.Printf("Error creating article2: %v", err)
-		} else {
-			log.Printf("Created article: %v", article2)
-		}
-	}
+		// 2. Generate Article (Linked to the generated user)
+		articleTitle := fmt.Sprintf("Generated Article %d", i)
+		articleBody := fmt.Sprintf("This is the automated body content for article number %d.", i)
 
-	if user2 != nil {
-		article3, err := articleRepo.Create(ctx, user2.UID, "Web Development with Go", "Learn how to build web applications...")
+		_, err = articleRepo.Create(ctx, user.UID, articleTitle, articleBody)
 		if err != nil {
-			log.Printf("Error creating article3: %v", err)
-		} else {
-			log.Printf("Created article: %v", article3)
-		}
-	}
-
-	// Create sample products
-	if user1 != nil {
-		product1, err := productRepo.Create(ctx, "SKU10001", "Coffee Beans", 100, "29.99", "10", user1.UID, "assets/coffee.jpg")
-		if err != nil {
-			log.Printf("Error creating product1: %v", err)
-		} else {
-			log.Printf("Created product: %v", product1)
+			log.Printf("Error creating article %d: %v", i, err)
 		}
 
-		product2, err := productRepo.Create(ctx, "SKU05001", "Programming Book", 50, "49.99", "05", user1.UID, "assets/book.jpg")
-		if err != nil {
-			log.Printf("Error creating product2: %v", err)
-		} else {
-			log.Printf("Created product: %v", product2)
-		}
-	}
+		// 3. Generate Product (Linked to the generated user)
+		sku := fmt.Sprintf("SKU%05d", i) // Formats as SKU00001, SKU00002, etc.
+		productName := fmt.Sprintf("Test Product %d", i)
+		qty := 100
+		price := "29.99"
+		categoryId := "10"
+		imagePath := "assets/default.jpg"
 
-	if user2 != nil {
-		product3, err := productRepo.Create(ctx, "SKU10002", "Tea Leaves", 75, "19.99", "10", user2.UID, "assets/tea.jpg")
+		_, err = productRepo.Create(ctx, sku, productName, qty, price, categoryId, user.UID, imagePath)
 		if err != nil {
-			log.Printf("Error creating product3: %v", err)
-		} else {
-			log.Printf("Created product: %v", product3)
+			log.Printf("Error creating product %d: %v", i, err)
+		}
+
+		// Log progress every 1,000 iterations to keep the console clean
+		if i%1000 == 0 {
+			log.Printf("Successfully seeded %d/%d records...", i, seedCount)
 		}
 	}
 
