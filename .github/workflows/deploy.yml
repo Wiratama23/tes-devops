@@ -90,4 +90,4 @@ jobs:
         run: docker compose down
 
       - name: Cleanup old images
-        run: docker image prune -f
+        run: docker image prune -af
