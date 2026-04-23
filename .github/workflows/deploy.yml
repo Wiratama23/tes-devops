@@ -4,29 +4,71 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   golangci:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: stable
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@v3
         with:
-          version: v2.11
+          version: v1.54
           working-directory: backend
 
-  deploy:
+  build-and-push:
     needs: golangci
+    name: Build and Push to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest
+
+      - name: Build and push Migrations image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/migrations/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-goose:latest
+
+  deploy:
+    needs: build-and-push
     name: Deploy to Server
     runs-on: self-hosted 
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Create .env file
         run: |
@@ -36,14 +78,15 @@ jobs:
           echo "PORT=${{ secrets.PORT }}" >> .env
           echo "TUNNEL_TOKEN=${{ secrets.TUNNEL_TOKEN }}" >> .env
 
-      - name: Build and Deploy with Docker Compose
+      - name: Pull and Deploy with Docker Compose
         run: |
-          # --build ensures images are recreated if Go code changed
-          # -d runs it in the background
-          docker compose up -d --build
+          # Pulls the latest pre-built images from GHCR
+          docker compose pull
+          # Runs the containers WITHOUT the --build flag
+          docker compose up -d 
       
       - name: shutdown services
-        if: failure() # Ensure this runs even if the previous steps fail
+        if: failure()
         run: docker compose down
 
       - name: Cleanup old images
