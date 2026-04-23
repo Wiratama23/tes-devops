@@ -11,6 +11,9 @@ docker compose -f docker-compose.dev.yaml up --build
 # or close
 docker compose -f docker-compose.dev.yaml down
 
+# run seeder
+docker compose run --rm api ./seeder
+
 #run backend
 go run ./server #running the server module from root
 
