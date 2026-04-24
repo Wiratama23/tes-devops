@@ -77,6 +77,7 @@ jobs:
           echo "DOCKER_DB_URL=${{ secrets.DOCKER_DB_URL }}" >> .env
           echo "PORT=${{ secrets.PORT }}" >> .env
           echo "TUNNEL_TOKEN=${{ secrets.TUNNEL_TOKEN }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
 
       - name: Pull and Deploy with Docker Compose
         run: |
