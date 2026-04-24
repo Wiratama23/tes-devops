@@ -35,6 +35,7 @@ services:
     #   - "8080:${PORT}"
     environment:
       # Pass database connection strings here so your app can read them via os.Getenv
+      - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=${DOCKER_DB_URL}
       - PORT=${PORT}
     depends_on:
