@@ -27,6 +27,12 @@ func InitializeWAF() (coraza.WAF, error) {
 }
 
 // WrapHandlerWithWAF wraps an HTTP handler with Coraza WAF protection
-func WrapHandlerWithWAF(waf coraza.WAF, handler http.Handler) http.Handler {
-	return txhttp.WrapHandler(waf, handler)
+// func WrapHandlerWithWAF(waf coraza.WAF, handler http.Handler) http.Handler {
+// 	return txhttp.WrapHandler(waf, handler)
+// }
+
+func WAFMiddleware(waf coraza.WAF) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return txhttp.WrapHandler(waf, next)
+	}
 }

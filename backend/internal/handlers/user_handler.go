@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	json "github.com/goccy/go-json"
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"

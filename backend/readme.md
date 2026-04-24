@@ -154,8 +154,8 @@ Query Parameters:
 
 Examples:
 - GET /articles - Fetch 10 random articles
-- GET /articles?limit=25 - Fetch 25 random articles
-- GET /articles?limit=10&offset=10 - Fetch 10 articles skipping the first 10
+- GET /articles?page=2 - Fetch 10 articles (default number) for page 1
+- GET /articles?page=2&limit=20 - Fetch 20 articles skipping the first 10
 
 Response (200 OK):
 {

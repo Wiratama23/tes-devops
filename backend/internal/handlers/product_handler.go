@@ -1,14 +1,14 @@
 package handlers
 
 import (
-	json "github.com/goccy/go-json"
+	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
+	"rwiratama.com/m/internal/middleware"
 	"rwiratama.com/m/internal/models"
 	"rwiratama.com/m/internal/repository"
 )
@@ -93,24 +93,11 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 
 // GetAllProducts handles GET /products with optional ?limit and ?offset query parameters
 func (h *ProductHandler) GetAllProducts(w http.ResponseWriter, r *http.Request) {
-	// Parse limit and offset from query parameters
-	limitStr := r.URL.Query().Get("limit")
-	offsetStr := r.URL.Query().Get("offset")
+	pagination := middleware.GetPaginationData(r.Context())
 
-	limit := 100 // default limit
-	offset := 0 // default offset
-
-	if limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
-			limit = l
-		}
-	}
-
-	if offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
-	}
+	// Formula: (Page - 1) * Limit
+	offset := (pagination.Page - 1) * pagination.Limit
+	limit := pagination.Limit
 
 	products, totalCount, err := h.repo.GetAllWithPagination(r.Context(), limit, offset)
 	if err != nil {
