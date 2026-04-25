@@ -80,46 +80,6 @@ func (r *ProductRepository) GetByID(ctx context.Context, productID string) (*mod
 	return &product, nil
 }
 
-// GetAll retrieves all products from the database
-func (r *ProductRepository) GetAll(ctx context.Context) ([]*models.Product, error) {
-	query := `
-		SELECT product_id, product_name, product_quantity, product_prices, product_type, created_at, created_by, image_path
-		FROM products
-		ORDER BY created_at DESC
-	`
-
-	rows, err := r.pool.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query products: %w", err)
-	}
-	defer rows.Close()
-
-	var products []*models.Product
-	for rows.Next() {
-		var product models.Product
-		err := rows.Scan(
-			&product.ProductID,
-			&product.ProductName,
-			&product.ProductQuantity,
-			&product.ProductPrices,
-			&product.ProductType,
-			&product.CreatedAt,
-			&product.CreatedBy,
-			&product.ImagePath,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan product: %w", err)
-		}
-		products = append(products, &product)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating products: %w", err)
-	}
-
-	return products, nil
-}
-
 // Update updates an existing product
 func (r *ProductRepository) Update(ctx context.Context, productID, productName string, productQuantity int, productPrices, productType, imagePath string) (*models.Product, error) {
 	// Convert string price to decimal
@@ -379,13 +339,13 @@ func (r *ProductRepository) GetByNameLike(ctx context.Context, namePattern strin
 }
 
 // GetAllWithPagination retrieves products with pagination (uses idx_products_created_at)
-func (r *ProductRepository) GetAllWithPagination(ctx context.Context, limit, offset int) ([]*models.Product, int, error) {
+func (r *ProductRepository) GetAllWithPagination(ctx context.Context, limit, offset int) ([]*models.Product, error) {
 	// Get total count
-	var totalCount int
-	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM products").Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count products: %w", err)
-	}
+	// var totalCount int
+	// err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM products").Scan(&totalCount)
+	// if err != nil {
+	// 	return nil, 0, fmt.Errorf("failed to count products: %w", err)
+	// }
 
 	query := `
 		SELECT product_id, product_name, product_quantity, product_prices, product_type, created_at, created_by, image_path
@@ -396,7 +356,7 @@ func (r *ProductRepository) GetAllWithPagination(ctx context.Context, limit, off
 
 	rows, err := r.pool.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to query products with pagination: %w", err)
+		return nil, fmt.Errorf("failed to query products with pagination: %w", err)
 	}
 	defer rows.Close()
 
@@ -414,14 +374,14 @@ func (r *ProductRepository) GetAllWithPagination(ctx context.Context, limit, off
 			&product.ImagePath,
 		)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan product: %w", err)
+			return nil, fmt.Errorf("failed to scan product: %w", err)
 		}
 		products = append(products, &product)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("error iterating products: %w", err)
+		return nil, fmt.Errorf("error iterating products: %w", err)
 	}
 
-	return products, totalCount, nil
+	return products, nil //products, totalCount, nil
 }

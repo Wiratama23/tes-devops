@@ -69,39 +69,6 @@ func (r *ArticleRepository) GetByID(ctx context.Context, articleID int) (*models
 	return &article, nil
 }
 
-// GetAll retrieves all articles
-func (r *ArticleRepository) GetAll(ctx context.Context) ([]models.Article, error) {
-	query := `
-		SELECT articles_id, uid, title, article_text, date_created, updated_at
-		FROM articles
-		ORDER BY date_created DESC
-	`
-
-	rows, err := r.pool.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get articles: %w", err)
-	}
-	defer rows.Close()
-
-	articles, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (models.Article, error) {
-		var article models.Article
-		err := row.Scan(
-			&article.ArticlesID,
-			&article.UID,
-			&article.Title,
-			&article.ArticleText,
-			&article.DateCreated,
-			&article.UpdatedAt,
-		)
-		return article, err
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to collect articles: %w", err)
-	}
-
-	return articles, nil
-}
-
 // GetByUserID retrieves all articles by a specific user
 func (r *ArticleRepository) GetByUserID(ctx context.Context, uid uuid.UUID) ([]models.Article, error) {
 	query := `
@@ -181,13 +148,13 @@ func (r *ArticleRepository) Delete(ctx context.Context, articleID int) error {
 }
 
 // GetAllWithPagination retrieves articles with pagination (uses date_created index)
-func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, offset int) ([]models.Article, int, error) {
+func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, offset int) ([]models.Article, error) {
 	// Get total count
-	var totalCount int
-	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM articles").Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count articles: %w", err)
-	}
+	// var totalCount int
+	// err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM articles").Scan(&totalCount)
+	// if err != nil {
+	// 	return nil, 0, fmt.Errorf("failed to count articles: %w", err)
+	// }
 
 	query := `
 		SELECT articles_id, uid, title, article_text, date_created, updated_at
@@ -198,7 +165,7 @@ func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, off
 
 	rows, err := r.pool.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to query articles with pagination: %w", err)
+		return nil, fmt.Errorf("failed to query articles with pagination: %w", err)
 	}
 	defer rows.Close()
 
@@ -215,8 +182,8 @@ func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, off
 		return article, err
 	})
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to collect articles: %w", err)
+		return nil, fmt.Errorf("failed to collect articles: %w", err)
 	}
 
-	return articles, totalCount, nil
+	return articles, nil
 }

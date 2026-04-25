@@ -18,10 +18,9 @@ type ProductHandler struct {
 }
 
 type PaginatedProductsResponse struct {
-	Data       []*models.Product `json:"data"`
-	TotalCount int               `json:"total_count"`
-	Limit      int               `json:"limit"`
-	Offset     int               `json:"offset"`
+	Data   []*models.Product `json:"data"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
 }
 
 func NewProductHandler(pool *pgxpool.Pool) *ProductHandler {
@@ -99,17 +98,16 @@ func (h *ProductHandler) GetAllProducts(w http.ResponseWriter, r *http.Request) 
 	offset := (pagination.Page - 1) * pagination.Limit
 	limit := pagination.Limit
 
-	products, totalCount, err := h.repo.GetAllWithPagination(r.Context(), limit, offset)
+	products, err := h.repo.GetAllWithPagination(r.Context(), limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	resp := PaginatedProductsResponse{
-		Data:       products,
-		TotalCount: totalCount,
-		Limit:      limit,
-		Offset:     offset,
+		Data:   products,
+		Limit:  limit,
+		Offset: offset,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

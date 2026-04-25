@@ -16,7 +16,8 @@ func InitializeWAF() (coraza.WAF, error) {
 			WithRootFS(coreruleset.FS).
 			WithDirectivesFromFile("@coraza.conf-recommended").
 			WithDirectivesFromFile("@crs-setup.conf.example").
-			WithDirectivesFromFile("@owasp_crs/*.conf"),
+			WithDirectivesFromFile("@owasp_crs/*.conf").
+			WithDirectives("SecResponseBodyAccess Off"),
 	)
 	if err != nil {
 		return nil, err
