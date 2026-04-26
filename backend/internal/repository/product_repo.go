@@ -6,16 +6,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 	"rwiratama.com/m/internal/models"
 )
 
 type ProductRepository struct {
-	pool *pgxpool.Pool
+	pool PgxPool
 }
 
-func NewProductRepository(pool *pgxpool.Pool) *ProductRepository {
+func NewProductRepository(pool PgxPool) *ProductRepository {
 	return &ProductRepository{pool: pool}
 }
 

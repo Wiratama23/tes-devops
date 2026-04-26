@@ -511,6 +511,103 @@ curl -X DELETE http://localhost:8080/products/SKU10001
 
 ---
 
+## 🧪 Running Tests
+
+The Go test suite is split into two packages so unit tests can run anywhere
+(no DB required) while integration tests opt-in only when a Postgres URL is
+available.
+
+```
+backend/
+└── tests/
+    ├── testutil_test.go         # shared chi/pagination/mock helpers
+    ├── user_handler_test.go     # isolated unit tests (pgxmock)
+    ├── article_handler_test.go
+    ├── product_handler_test.go
+    └── integration/             # DB-backed tests (skipped by default)
+        ├── helpers_test.go
+        ├── user_handler_test.go
+        ├── article_handler_test.go
+        └── product_handler_test.go
+```
+
+### Unit tests (no database)
+
+The unit tests under `tests/` mock the Postgres connection pool with
+[`pgxmock/v5`](https://github.com/pashagolub/pgxmock), so they are completely
+isolated and run in well under a second.
+
+```bash
+# From the backend/ directory:
+
+# Run every unit test
+go test ./tests/ -count=1
+
+# Verbose output (per-test pass/fail lines)
+go test ./tests/ -count=1 -v
+
+# Run only one resource's tests
+go test ./tests/ -run TestUserHandler -v
+go test ./tests/ -run TestArticleHandler -v
+go test ./tests/ -run TestProductHandler -v
+
+# Run a single test case
+go test ./tests/ -run TestUserHandler_CreateUser_Success -v
+
+# With coverage of the handlers + repository packages
+go test ./tests/ -count=1 \
+  -coverpkg=./internal/handlers/...,./internal/repository/... \
+  -coverprofile=coverage.out
+go tool cover -func=coverage.out
+go tool cover -html=coverage.out -o coverage.html
+```
+
+Each test sets up explicit SQL expectations on a mock pool, so any unmet
+expectation (or unexpected query) fails the test automatically — there is no
+hidden state and no need for a database.
+
+### Integration tests (require Postgres)
+
+The files under `tests/integration/` exercise real handlers against a live
+Postgres instance. They skip themselves when no database URL is configured, so
+they're safe to leave in CI even when only unit tests should run.
+
+To enable them, edit `tests/integration/helpers_test.go` and return your
+database URL from `getTestDatabaseURL()` (or change it to read
+`os.Getenv("DATABASE_URL")`):
+
+```go
+func getTestDatabaseURL() string {
+    return os.Getenv("DATABASE_URL")
+}
+```
+
+Then run:
+
+```bash
+# From backend/, with a running Postgres reachable at $DATABASE_URL
+export DATABASE_URL="postgres://user:pass@localhost:5432/tesdb?sslmode=disable"
+
+# Apply migrations first if the schema isn't already in place:
+go run cmd/api/main.go &  # starts the API and runs goose migrations, then Ctrl+C
+
+# Run integration tests
+go test ./tests/integration/ -count=1 -v
+```
+
+### Run everything at once
+
+```bash
+go vet ./...
+go build ./...
+go test ./tests/... -count=1
+```
+
+The unit package will pass; the integration package will report `ok` with all
+tests skipped unless `DATABASE_URL` is wired up.
+
+---
+
 ## 🔧 Tech Stack
 
 - **Language**: Go 1.26.2
@@ -533,10 +630,17 @@ curl -X DELETE http://localhost:8080/products/SKU10001
 ├── internal/
 │   ├── database/db.go           # Database connection
 │   ├── handlers/                # HTTP handlers
-│   ├── middleware/              # WAF middleware
+│   ├── middleware/              # WAF + pagination middleware
 │   ├── models/                  # Data models
 │   └── repository/              # Database operations
+│       └── pool.go              # PgxPool interface (real pool / pgxmock)
 ├── migrations/                  # Database migrations (Goose)
+├── tests/                       # Isolated handler unit tests (pgxmock)
+│   ├── testutil_test.go         # chi/pagination/mock helpers
+│   ├── user_handler_test.go
+│   ├── article_handler_test.go
+│   ├── product_handler_test.go
+│   └── integration/             # DB-backed tests (skipped by default)
 ├── .env                         # Environment variables
 ├── docker-compose.yaml          # Docker setup
 ├── Dockerfile                   # Container build

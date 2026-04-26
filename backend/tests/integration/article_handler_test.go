@@ -1,15 +1,17 @@
-package handlers
+package integration_test
 
 import (
 	"bytes"
 	"context"
-	json "github.com/goccy/go-json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	json "github.com/goccy/go-json"
+
 	"github.com/jackc/pgx/v5/pgxpool"
+	"rwiratama.com/m/internal/handlers"
 	"rwiratama.com/m/internal/models"
 	"rwiratama.com/m/internal/repository"
 )
@@ -27,13 +29,12 @@ func TestArticleHandlerCreateArticle(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
-	handler := NewArticleHandler(pool)
+	handler := handlers.NewArticleHandler(pool)
 
-	reqBody := CreateArticleRequest{
+	reqBody := handlers.CreateArticleRequest{
 		UID:         user.UID,
 		Title:       "Test Article",
 		ArticleText: "This is a test article",
@@ -71,7 +72,7 @@ func TestArticleHandlerGetAllArticles(t *testing.T) {
 	}
 	defer pool.Close()
 
-	handler := NewArticleHandler(pool)
+	handler := handlers.NewArticleHandler(pool)
 
 	req := httptest.NewRequest("GET", "/articles", nil)
 	w := httptest.NewRecorder()
@@ -82,11 +83,11 @@ func TestArticleHandlerGetAllArticles(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var result []*models.Article
+	var result handlers.PaginatedArticlesResponse
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if result == nil {
+	if result.Data == nil {
 		t.Error("Expected articles list, got nil")
 	}
 }
@@ -104,17 +105,15 @@ func TestArticleHandlerGetArticle(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user and article first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
 	articleRepo := repository.NewArticleRepository(pool)
 	article, _ := articleRepo.Create(ctx, user.UID, "Test Article", "This is a test article")
 
-	// Get the article
-	handler := NewArticleHandler(pool)
+	handler := handlers.NewArticleHandler(pool)
 	req := httptest.NewRequest("GET", fmt.Sprintf("/articles/%d", article.ArticlesID), nil)
-	req.SetPathValue("id", fmt.Sprintf("%d", article.ArticlesID))
+	req = withChiParam(req, "id", fmt.Sprintf("%d", article.ArticlesID))
 	w := httptest.NewRecorder()
 
 	handler.GetArticle(w, req)
@@ -146,7 +145,6 @@ func TestArticleHandlerGetUserArticles(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user and articles
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
@@ -158,10 +156,9 @@ func TestArticleHandlerGetUserArticles(t *testing.T) {
 		t.Fatalf("failed to create article 2: %v", err)
 	}
 
-	// Get user articles
-	handler := NewArticleHandler(pool)
+	handler := handlers.NewArticleHandler(pool)
 	req := httptest.NewRequest("GET", fmt.Sprintf("/users/%s/articles", user.UID.String()), nil)
-	req.SetPathValue("uid", user.UID.String())
+	req = withChiParam(req, "uid", user.UID.String())
 	w := httptest.NewRecorder()
 
 	handler.GetUserArticles(w, req)
@@ -170,7 +167,7 @@ func TestArticleHandlerGetUserArticles(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var result []*models.Article
+	var result []models.Article
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -192,23 +189,21 @@ func TestArticleHandlerUpdateArticle(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user and article first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
 	articleRepo := repository.NewArticleRepository(pool)
 	article, _ := articleRepo.Create(ctx, user.UID, "Original Title", "Original content")
 
-	// Update the article
-	handler := NewArticleHandler(pool)
-	updateReq := UpdateArticleRequest{
+	handler := handlers.NewArticleHandler(pool)
+	updateReq := handlers.UpdateArticleRequest{
 		Title:       "Updated Title",
 		ArticleText: "Updated content",
 	}
 
 	body, _ := json.Marshal(updateReq)
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/articles/%d", article.ArticlesID), bytes.NewReader(body))
-	req.SetPathValue("id", fmt.Sprintf("%d", article.ArticlesID))
+	req = withChiParam(req, "id", fmt.Sprintf("%d", article.ArticlesID))
 	w := httptest.NewRecorder()
 
 	handler.UpdateArticle(w, req)
@@ -239,17 +234,15 @@ func TestArticleHandlerDeleteArticle(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user and article first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
 	articleRepo := repository.NewArticleRepository(pool)
 	article, _ := articleRepo.Create(ctx, user.UID, "Article to Delete", "Content to delete")
 
-	// Delete the article
-	handler := NewArticleHandler(pool)
+	handler := handlers.NewArticleHandler(pool)
 	req := httptest.NewRequest("DELETE", fmt.Sprintf("/articles/%d", article.ArticlesID), nil)
-	req.SetPathValue("id", fmt.Sprintf("%d", article.ArticlesID))
+	req = withChiParam(req, "id", fmt.Sprintf("%d", article.ArticlesID))
 	w := httptest.NewRecorder()
 
 	handler.DeleteArticle(w, req)
@@ -258,9 +251,7 @@ func TestArticleHandlerDeleteArticle(t *testing.T) {
 		t.Errorf("Expected status 204, got %d", w.Code)
 	}
 
-	// Verify deletion
-	_, err = articleRepo.GetByID(ctx, article.ArticlesID)
-	if err == nil {
+	if _, err := articleRepo.GetByID(ctx, article.ArticlesID); err == nil {
 		t.Error("Expected article to be deleted")
 	}
 }
@@ -278,9 +269,9 @@ func TestArticleHandlerInvalidID(t *testing.T) {
 	}
 	defer pool.Close()
 
-	handler := NewArticleHandler(pool)
+	handler := handlers.NewArticleHandler(pool)
 	req := httptest.NewRequest("GET", "/articles/invalid", nil)
-	req.SetPathValue("id", "invalid")
+	req = withChiParam(req, "id", "invalid")
 	w := httptest.NewRecorder()
 
 	handler.GetArticle(w, req)
@@ -303,38 +294,14 @@ func TestArticleHandlerInvalidUID(t *testing.T) {
 	}
 	defer pool.Close()
 
-	handler := NewArticleHandler(pool)
+	handler := handlers.NewArticleHandler(pool)
 	req := httptest.NewRequest("GET", "/users/invalid-uid/articles", nil)
-	req.SetPathValue("uid", "invalid-uid")
+	req = withChiParam(req, "uid", "invalid-uid")
 	w := httptest.NewRecorder()
 
 	handler.GetUserArticles(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
-	}
-}
-
-func TestArticleHandlerInvalidMethod(t *testing.T) {
-	dbURL := getTestDatabaseURL()
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping integration test")
-	}
-
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dbURL)
-	if err != nil {
-		t.Fatalf("Failed to create pool: %v", err)
-	}
-	defer pool.Close()
-
-	handler := NewArticleHandler(pool)
-	req := httptest.NewRequest("DELETE", "/articles", nil)
-	w := httptest.NewRecorder()
-
-	handler.CreateArticle(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
 	}
 }

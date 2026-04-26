@@ -55,3 +55,4 @@ to do list:
 14. implement auth token on using API |x|
 15. fix my ci/cd incase previous steps are failed. | | (currently it do that, but gonna be fragile when doing new update with current logic.)
 16. create unit testing | |
+17. migrate docker images to gitlab | |

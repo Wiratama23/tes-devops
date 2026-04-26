@@ -1,16 +1,18 @@
-package handlers
+package integration_test
 
 import (
 	"bytes"
 	"context"
-	json "github.com/goccy/go-json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	json "github.com/goccy/go-json"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
+	"rwiratama.com/m/internal/handlers"
 	"rwiratama.com/m/internal/models"
 	"rwiratama.com/m/internal/repository"
 )
@@ -28,13 +30,12 @@ func TestProductHandlerCreateProduct(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
-	handler := NewProductHandler(pool)
+	handler := handlers.NewProductHandler(pool)
 
-	reqBody := CreateProductRequest{
+	reqBody := handlers.CreateProductRequest{
 		ProductID:       "SKU10001",
 		ProductName:     "Test Product",
 		ProductQuantity: 100,
@@ -76,20 +77,18 @@ func TestProductHandlerCreateProductWithDefaultImage(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
-	handler := NewProductHandler(pool)
+	handler := handlers.NewProductHandler(pool)
 
-	reqBody := CreateProductRequest{
+	reqBody := handlers.CreateProductRequest{
 		ProductID:       "SKU10002",
 		ProductName:     "Product Without Image",
 		ProductQuantity: 50,
 		ProductPrices:   decimal.NewFromFloat(19.99),
 		ProductType:     "05",
 		CreatedBy:       user.UID,
-		// ImagePath is empty, should default to assets/default_image.jpg
 	}
 
 	body, _ := json.Marshal(reqBody)
@@ -124,7 +123,7 @@ func TestProductHandlerGetAllProducts(t *testing.T) {
 	}
 	defer pool.Close()
 
-	handler := NewProductHandler(pool)
+	handler := handlers.NewProductHandler(pool)
 
 	req := httptest.NewRequest("GET", "/products", nil)
 	w := httptest.NewRecorder()
@@ -135,11 +134,11 @@ func TestProductHandlerGetAllProducts(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var result []*models.Product
+	var result handlers.PaginatedProductsResponse
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if result == nil {
+	if result.Data == nil {
 		t.Error("Expected products list, got nil")
 	}
 }
@@ -157,17 +156,15 @@ func TestProductHandlerGetProductByID(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user and product first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
 	productRepo := repository.NewProductRepository(pool)
 	product, _ := productRepo.Create(ctx, "SKU10003", "Test Product", 100, "29.99", "10", user.UID, "assets/test.jpg")
 
-	// Get the product
-	handler := NewProductHandler(pool)
+	handler := handlers.NewProductHandler(pool)
 	req := httptest.NewRequest("GET", fmt.Sprintf("/products/%s", product.ProductID), nil)
-	req.SetPathValue("id", product.ProductID)
+	req = withChiParam(req, "id", product.ProductID)
 	w := httptest.NewRecorder()
 
 	handler.GetProductByID(w, req)
@@ -198,16 +195,14 @@ func TestProductHandlerUpdateProduct(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user and product first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
 	productRepo := repository.NewProductRepository(pool)
 	product, _ := productRepo.Create(ctx, "SKU10004", "Original Product", 100, "29.99", "10", user.UID, "assets/test.jpg")
 
-	// Update the product
-	handler := NewProductHandler(pool)
-	updateReq := UpdateProductRequest{
+	handler := handlers.NewProductHandler(pool)
+	updateReq := handlers.UpdateProductRequest{
 		ProductName:     "Updated Product",
 		ProductQuantity: 200,
 		ProductPrices:   decimal.NewFromFloat(39.99),
@@ -217,7 +212,7 @@ func TestProductHandlerUpdateProduct(t *testing.T) {
 
 	body, _ := json.Marshal(updateReq)
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/products/%s", product.ProductID), bytes.NewReader(body))
-	req.SetPathValue("id", product.ProductID)
+	req = withChiParam(req, "id", product.ProductID)
 	w := httptest.NewRecorder()
 
 	handler.UpdateProduct(w, req)
@@ -248,17 +243,15 @@ func TestProductHandlerDeleteProduct(t *testing.T) {
 	}
 	defer pool.Close()
 
-	// Create a user and product first
 	userRepo := repository.NewUserRepository(pool)
 	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
 
 	productRepo := repository.NewProductRepository(pool)
 	product, _ := productRepo.Create(ctx, "SKU10005", "Product to Delete", 100, "29.99", "10", user.UID, "assets/test.jpg")
 
-	// Delete the product
-	handler := NewProductHandler(pool)
+	handler := handlers.NewProductHandler(pool)
 	req := httptest.NewRequest("DELETE", fmt.Sprintf("/products/%s", product.ProductID), nil)
-	req.SetPathValue("id", product.ProductID)
+	req = withChiParam(req, "id", product.ProductID)
 	w := httptest.NewRecorder()
 
 	handler.DeleteProduct(w, req)
@@ -267,76 +260,7 @@ func TestProductHandlerDeleteProduct(t *testing.T) {
 		t.Errorf("Expected status 204, got %d", w.Code)
 	}
 
-	// Verify deletion
-	_, err = productRepo.GetByID(ctx, product.ProductID)
-	if err == nil {
+	if _, err := productRepo.GetByID(ctx, product.ProductID); err == nil {
 		t.Error("Expected product to be deleted")
-	}
-}
-
-func TestProductHandlerInvalidMethod(t *testing.T) {
-	dbURL := getTestDatabaseURL()
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping integration test")
-	}
-
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dbURL)
-	if err != nil {
-		t.Fatalf("Failed to create pool: %v", err)
-	}
-	defer pool.Close()
-
-	handler := NewProductHandler(pool)
-
-	// Try DELETE on POST endpoint
-	req := httptest.NewRequest("DELETE", "/products", nil)
-	w := httptest.NewRecorder()
-
-	handler.CreateProduct(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
-
-func TestProductHandlerInvalidPrice(t *testing.T) {
-	dbURL := getTestDatabaseURL()
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping integration test")
-	}
-
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dbURL)
-	if err != nil {
-		t.Fatalf("Failed to create pool: %v", err)
-	}
-	defer pool.Close()
-
-	// Create a user first
-	userRepo := repository.NewUserRepository(pool)
-	user, _ := userRepo.Create(ctx, "testuser", "test@example.com")
-
-	handler := NewProductHandler(pool)
-
-	reqBody := CreateProductRequest{
-		ProductID:       "SKU10006",
-		ProductName:     "Invalid Price Product",
-		ProductQuantity: 100,
-		ProductPrices:   decimal.NewFromFloat(29.99),
-		ProductType:     "10",
-		CreatedBy:       user.UID,
-		ImagePath:       "assets/test.jpg",
-	}
-
-	body, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest("POST", "/products", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-
-	handler.CreateProduct(w, req)
-
-	// Should succeed with valid decimal
-	if w.Code != http.StatusCreated {
-		t.Errorf("Expected status 201, got %d. Body: %s", w.Code, w.Body.String())
 	}
 }

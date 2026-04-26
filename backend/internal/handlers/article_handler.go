@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"rwiratama.com/m/internal/middleware"
 	"rwiratama.com/m/internal/models"
 	"rwiratama.com/m/internal/repository"
@@ -23,7 +22,7 @@ type PaginatedArticlesResponse struct {
 	Offset int              `json:"offset"`
 }
 
-func NewArticleHandler(pool *pgxpool.Pool) *ArticleHandler {
+func NewArticleHandler(pool repository.PgxPool) *ArticleHandler {
 	return &ArticleHandler{
 		repo: repository.NewArticleRepository(pool),
 	}

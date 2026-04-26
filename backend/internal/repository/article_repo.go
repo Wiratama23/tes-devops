@@ -6,15 +6,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"rwiratama.com/m/internal/models"
 )
 
 type ArticleRepository struct {
-	pool *pgxpool.Pool
+	pool PgxPool
 }
 
-func NewArticleRepository(pool *pgxpool.Pool) *ArticleRepository {
+func NewArticleRepository(pool PgxPool) *ArticleRepository {
 	return &ArticleRepository{pool: pool}
 }
 

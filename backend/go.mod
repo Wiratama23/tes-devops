@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/joho/godotenv v1.5.1
+	github.com/pashagolub/pgxmock/v5 v5.0.1
 	github.com/pressly/goose/v3 v3.20.0
 	github.com/shopspring/decimal v1.3.1
 )

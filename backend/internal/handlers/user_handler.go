@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"rwiratama.com/m/internal/models"
 	"rwiratama.com/m/internal/repository"
 )
@@ -15,7 +14,7 @@ type UserHandler struct {
 	repo *repository.UserRepository
 }
 
-func NewUserHandler(pool *pgxpool.Pool) *UserHandler {
+func NewUserHandler(pool repository.PgxPool) *UserHandler {
 	return &UserHandler{
 		repo: repository.NewUserRepository(pool),
 	}

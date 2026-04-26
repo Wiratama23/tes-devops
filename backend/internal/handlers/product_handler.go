@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 	"rwiratama.com/m/internal/middleware"
 	"rwiratama.com/m/internal/models"
@@ -23,7 +22,7 @@ type PaginatedProductsResponse struct {
 	Offset int               `json:"offset"`
 }
 
-func NewProductHandler(pool *pgxpool.Pool) *ProductHandler {
+func NewProductHandler(pool repository.PgxPool) *ProductHandler {
 	return &ProductHandler{
 		repo: repository.NewProductRepository(pool),
 	}
