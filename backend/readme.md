@@ -1,30 +1,3 @@
-tech stack used on golang is PGX, CorazaWAF, Goose
-
-#raw postgresql schema
-users:
-uid : google.uuid
-username
-email
-
-articles:
-articlesid
-uid //from users database
-title
-articleText
-dateCreated
-
-products:
-product_id : VARCHAR(20) PRIMARY KEY (SKU format)
-product_name
-product_quantity
-product_prices
-product_type
-created_at
-created_by : UUID reference to users.uid
-image_path
-
-
-
 ### Users API
 
 #### 1. Create User
