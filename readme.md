@@ -85,9 +85,9 @@ docker ps -s
 | 9 | implement cloudflare tunneling | :white_check_mark: | put into docker container |
 | 10 | implement simple database using sql db | :white_check_mark: | |
 | 11 | implement CI/CD pipeline | :white_check_mark: | |
-| 12 | update frontend using next.js | :black_square_button: | |
+| 12 | update frontend using next.js | :black_square_button: | wait until gitlab migration is completed. |
 | 13 | vulnerability test | :black_square_button: | because we didn't use vps |
 | 14 | implement auth token on using API | :white_check_mark: | |
-| 15 | fix my ci/cd incase previous steps are failed | :black_square_button: | currently it do that, but gonna be fragile when doing new update with current logic. |
-| 16 | create unit testing | :black_square_button: | |
+| 15 | fix my ci/cd incase previous steps are failed | :white_check_mark: | currently it do that, but gonna be fragile when doing new update with current logic. |
+| 16 | create unit testing | :white_check_mark: | current unit test are only for backend. |
 | 17 | migrate docker images to gitlab | :black_square_button: | |
