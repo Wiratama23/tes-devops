@@ -80,14 +80,14 @@ docker ps -s
 | 4 | isolate webapp into docker container | :white_check_mark: | |
 | 5 | connect each container together with docker networking | :white_check_mark: | |
 | 6 | implement load balancer for webapp | :white_check_mark: | |
-| 7 | implement high availability for nginx | [ ] | this need to use keepalived for simplicity |
+| 7 | implement high availability for nginx | &#9746; | this need to use keepalived for simplicity |
 | 8 | implement content caching for html with nginx | :white_check_mark: | |
 | 9 | implement cloudflare tunneling | :white_check_mark: | put into docker container |
 | 10 | implement simple database using sql db | :white_check_mark: | |
 | 11 | implement CI/CD pipeline | :white_check_mark: | |
-| 12 | update frontend using next.js | [ ] | |
-| 13 | vulnerability test | [ ] | because we didn't use vps |
+| 12 | update frontend using next.js | :black_square_button: | |
+| 13 | vulnerability test | :black_square_button: | because we didn't use vps |
 | 14 | implement auth token on using API | :white_check_mark: | |
-| 15 | fix my ci/cd incase previous steps are failed | [ ] | currently it do that, but gonna be fragile when doing new update with current logic. |
-| 16 | create unit testing | [ ] | |
-| 17 | migrate docker images to gitlab | [ ] | |
+| 15 | fix my ci/cd incase previous steps are failed | :black_square_button: | currently it do that, but gonna be fragile when doing new update with current logic. |
+| 16 | create unit testing | :black_square_button: | |
+| 17 | migrate docker images to gitlab | :black_square_button: | |
