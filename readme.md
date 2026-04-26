@@ -80,7 +80,7 @@ docker ps -s
 | 4 | isolate webapp into docker container | :white_check_mark: | |
 | 5 | connect each container together with docker networking | :white_check_mark: | |
 | 6 | implement load balancer for webapp | :white_check_mark: | |
-| 7 | implement high availability for nginx | &#9746; | this need to use keepalived for simplicity |
+| 7 | implement high availability for nginx | :black_square_button: | this need to use keepalived for simplicity |
 | 8 | implement content caching for html with nginx | :white_check_mark: | |
 | 9 | implement cloudflare tunneling | :white_check_mark: | put into docker container |
 | 10 | implement simple database using sql db | :white_check_mark: | |
