@@ -25,6 +25,7 @@ jobs:
                 working-directory: backend
     test:
         name: test
+        needs: golangci
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
