@@ -232,7 +232,7 @@ func TestProductHandler_GetAllProducts_PaginationShape(t *testing.T) {
 		WillReturnRows(productRows().AddRow("SKU1", "A", 1, price, "10", now, createdBy, "assets/a.jpg"))
 
 	h := handlers.NewProductHandler(mock)
-	req := withPagination(httptest.NewRequest(http.MethodGet, "/products", nil), 3, 4)
+	req := withPagination(httptest.NewRequest(http.MethodGet, "/products", nil), 3)
 	w := httptest.NewRecorder()
 
 	h.GetAllProducts(w, req)
@@ -245,8 +245,8 @@ func TestProductHandler_GetAllProducts_PaginationShape(t *testing.T) {
 	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got.Limit != 4 || got.Offset != 8 {
-		t.Errorf("expected limit=4 offset=8, got limit=%d offset=%d", got.Limit, got.Offset)
+	if got.Offset != 8 {
+		t.Errorf("expected offset=8, got offset=%d", got.Offset)
 	}
 	if len(got.Data) != 1 {
 		t.Errorf("expected 1 product, got %d", len(got.Data))

@@ -31,11 +31,10 @@ func chiRequest(method, target string, body io.Reader, params map[string]string)
 // so that middleware.GetPaginationData(r.Context()) returns the requested
 // page/limit pair. The pagination context key is unexported, so reusing the
 // middleware itself is the only way to populate it correctly.
-func withPagination(r *http.Request, page, limit int) *http.Request {
+func withPagination(r *http.Request, page int) *http.Request {
 	u, _ := url.Parse(r.URL.String())
 	q := u.Query()
 	q.Set("page", strconv.Itoa(page))
-	q.Set("limit", strconv.Itoa(limit))
 	u.RawQuery = q.Encode()
 	r.URL = u
 

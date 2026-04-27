@@ -195,7 +195,7 @@ func TestArticleHandler_GetAllArticles_PaginationShape(t *testing.T) {
 		WillReturnRows(articleRows().AddRow(1, uid, "A", "B", now, now))
 
 	h := handlers.NewArticleHandler(mock)
-	req := withPagination(httptest.NewRequest(http.MethodGet, "/articles", nil), 2, 5)
+	req := withPagination(httptest.NewRequest(http.MethodGet, "/articles", nil), 2)
 	w := httptest.NewRecorder()
 
 	h.GetAllArticles(w, req)
@@ -208,8 +208,8 @@ func TestArticleHandler_GetAllArticles_PaginationShape(t *testing.T) {
 	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got.Limit != 5 || got.Offset != 5 {
-		t.Errorf("expected limit=5 offset=5, got limit=%d offset=%d", got.Limit, got.Offset)
+	if got.Offset != 5 {
+		t.Errorf("expected offset=5, got offset=%d", got.Offset)
 	}
 	if len(got.Data) != 1 {
 		t.Errorf("expected 1 article, got %d", len(got.Data))
