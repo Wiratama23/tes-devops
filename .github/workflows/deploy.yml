@@ -9,9 +9,8 @@ env:
   IMAGE_NAME: wiratama23/tes-devops
 
 jobs:
-
   verify-tests:
-    name: Verify Previous Tests Passed
+    name: Verify Backend Tests Passed
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -27,9 +26,12 @@ jobs:
             exit 1
           fi
           echo "Tests are cleared! Proceeding to deployment..."
+  verify-docker:
+    uses: ./.github/workflows/docker-test.yml
+    needs: verify-tests
 
   build-and-push:
-    needs: verify-tests
+    needs: verify-docker
     name: Build and Push to GHCR
     runs-on: ubuntu-latest
     permissions:

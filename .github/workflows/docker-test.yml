@@ -1,0 +1,49 @@
+name: Docker Container Check
+
+on:
+  workflow_call:
+
+jobs:
+  container-check:
+    name: Check Docker Containers Build & Run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Create dummy .env for testing
+        run: |
+          touch .env
+          echo "DATABASE_URL=postgres://dummy_user:dummy_pass@db:5432/dummy_db?sslmode=disable" >> .env
+          echo "DOCKER_DB_URL=postgres://dummy_user:dummy_pass@db:5432/dummy_db?sslmode=disable" >> .env
+          echo "PORT=8080" >> .env
+          echo "JWT_SECRET=dummy_secret_for_test" >> .env
+
+      - name: Build and start Docker containers
+        run: docker compose -f docker-compose.test.yaml up -d --build
+
+      - name: Wait for containers to initialize
+        run: |
+          echo "Waiting 15 seconds for potential crashes..."
+          sleep 15
+
+      - name: Verify all containers are running
+        run: |
+          CRASHED_CONTAINERS=$(docker ps -a --filter "status=exited" --filter "status=restarting" --format "{{.Names}} - {{.Status}}")
+          
+          if [ -n "$CRASHED_CONTAINERS" ]; then
+            echo "❌ ERROR: One or more containers crashed or failed to start!"
+            echo "$CRASHED_CONTAINERS"
+            
+            echo "--- Container Logs ---"
+            docker compose -f docker-compose.test.yaml logs
+            exit 1
+          else
+            echo "✅ All containers are running successfully!"
+            docker ps
+          fi
+
+      - name: Shutdown test containers
+        if: always()
+        run: docker compose -f docker-compose.test.yaml down
