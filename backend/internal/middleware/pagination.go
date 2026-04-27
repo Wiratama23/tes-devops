@@ -8,6 +8,7 @@ import (
 
 // Define a custom type for context keys
 type contextKey string
+
 const paginationKey contextKey = "pagination"
 
 type PaginationData struct {
@@ -19,7 +20,7 @@ func Paginate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 1. Get query parameters from the URL (e.g., /articles?page=2&limit=20)
 		pageStr := r.URL.Query().Get("page")
-		limitStr := r.URL.Query().Get("limit")
+		// limitStr := r.URL.Query().Get("limit")
 
 		// 2. Set default values
 		page := 1
@@ -29,9 +30,9 @@ func Paginate(next http.Handler) http.Handler {
 		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
 			page = p
 		}
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
-			limit = l
-		}
+		// if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		// 	limit = l
+		// }
 
 		// 4. Package the data
 		data := PaginationData{Page: page, Limit: limit}
@@ -49,5 +50,5 @@ func GetPaginationData(ctx context.Context) PaginationData {
 		return data
 	}
 	// Fallback in case the middleware was forgotten on the route
-	return PaginationData{Page: 1, Limit: 10} 
+	return PaginationData{Page: 1, Limit: 10}
 }

@@ -86,7 +86,7 @@ jobs:
           echo "PORT=${{ secrets.PORT }}" >> .env
           echo "TUNNEL_TOKEN=${{ secrets.TUNNEL_TOKEN }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-          echo "DATABASE_URL=postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/${{ secrets.POSTGRES_DB }}?sslmode=disable" >> .env
+          echo "DATABASE_URL=postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}?sslmode=disable" >> .env
           echo "DOCKER_DB_URL=postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/${{ secrets.POSTGRES_DB }}?sslmode=disable" >> .env
       - name: Pull and Deploy with Docker Compose
         run: |
