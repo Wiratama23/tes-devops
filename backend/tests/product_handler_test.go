@@ -226,13 +226,14 @@ func TestProductHandler_GetAllProducts_PaginationShape(t *testing.T) {
 	now := time.Now().UTC()
 	price := decimal.RequireFromString("9.99")
 
-	// page=3 limit=4 -> offset=8
+	// WithArgs(limit, offset) should match the pagination logic in the handler, which
+	// Default limit=10, page=3 -> offset=10*(3-1)=20
 	mock.ExpectQuery(productPaginatedSQL).
-		WithArgs(4, 8).
+		WithArgs(10, 20).
 		WillReturnRows(productRows().AddRow("SKU1", "A", 1, price, "10", now, createdBy, "assets/a.jpg"))
 
 	h := handlers.NewProductHandler(mock)
-	req := withPagination(httptest.NewRequest(http.MethodGet, "/products", nil), 3)
+	req := withPagination(httptest.NewRequest(http.MethodGet, "/products", nil), 3) // page=3
 	w := httptest.NewRecorder()
 
 	h.GetAllProducts(w, req)
@@ -245,8 +246,8 @@ func TestProductHandler_GetAllProducts_PaginationShape(t *testing.T) {
 	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got.Offset != 8 {
-		t.Errorf("expected offset=8, got offset=%d", got.Offset)
+	if got.Offset != 20 {
+		t.Errorf("expected offset=20, got offset=%d", got.Offset)
 	}
 	if len(got.Data) != 1 {
 		t.Errorf("expected 1 product, got %d", len(got.Data))

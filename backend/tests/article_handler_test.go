@@ -189,13 +189,14 @@ func TestArticleHandler_GetAllArticles_PaginationShape(t *testing.T) {
 	uid := uuid.New()
 	now := time.Now().UTC()
 
-	// page=2 limit=5 -> offset=5
+	// WithArgs(limit, offset) should match the pagination logic in the handler, which
+	// Default limit=10, page=2 -> offset=10*(2-1)=10
 	mock.ExpectQuery(articlePaginatedSQL).
-		WithArgs(5, 5).
+		WithArgs(10, 10).
 		WillReturnRows(articleRows().AddRow(1, uid, "A", "B", now, now))
 
 	h := handlers.NewArticleHandler(mock)
-	req := withPagination(httptest.NewRequest(http.MethodGet, "/articles", nil), 2)
+	req := withPagination(httptest.NewRequest(http.MethodGet, "/articles", nil), 2) // page=2
 	w := httptest.NewRecorder()
 
 	h.GetAllArticles(w, req)
@@ -208,8 +209,8 @@ func TestArticleHandler_GetAllArticles_PaginationShape(t *testing.T) {
 	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if got.Offset != 5 {
-		t.Errorf("expected offset=5, got offset=%d", got.Offset)
+	if got.Offset != 10 {
+		t.Errorf("expected offset=10, got offset=%d", got.Offset)
 	}
 	if len(got.Data) != 1 {
 		t.Errorf("expected 1 article, got %d", len(got.Data))
