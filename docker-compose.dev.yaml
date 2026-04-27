@@ -50,16 +50,16 @@ services:
       # Exposed locally so you can connect database GUI tools (like DBeaver or pgAdmin)
       - "5432:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: tesdb
+      POSTGRES_USER: development_user
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: devdb
     volumes:
       # Renamed volume to prevent any clashes
       - pgdata_dev:/var/lib/postgresql/data
     networks:
       - db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d tesdb"]
+      test: ["CMD-SHELL", "pg_isready -U development_user -d devdb"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -76,7 +76,7 @@ services:
     working_dir: /migrations
     environment:
       - GOOSE_DRIVER=postgres
-      - GOOSE_DBSTRING=${DOCKER_DB_URL}
+      - GOOSE_DBSTRING=postgres://development_user:admin123@postgres:5432/devdb?sslmode=disable
     command: up
     depends_on:
       postgres:
