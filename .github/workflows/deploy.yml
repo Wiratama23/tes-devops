@@ -9,7 +9,27 @@ env:
   IMAGE_NAME: wiratama23/tes-devops
 
 jobs:
+
+  verify-tests:
+    name: Verify Previous Tests Passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        
+      - name: Check test.yml status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CONCLUSION=$(gh run list --workflow="test.yml" --branch=${{ github.ref_name }} --limit 1 --json conclusion -q '.[0].conclusion')
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Deployment blocked! The latest test run on branch '${{ github.ref_name }}' did not succeed. Status: $CONCLUSION"
+            exit 1
+          fi
+          echo "Tests are cleared! Proceeding to deployment..."
+
   build-and-push:
+    needs: verify-tests
     name: Build and Push to GHCR
     runs-on: ubuntu-latest
     permissions:
