@@ -33,7 +33,7 @@ jobs:
 
       - name: Verify all containers are running
         run: |
-          CRASHED_CONTAINERS=$(docker ps -a --filter "status=exited" --filter "status=restarting" --format "{{.Names}} {{.Status}}" | grep -v "goose_migration.*Exited (0)")
+          CRASHED_CONTAINERS=$(docker ps -a --filter "status=exited" --filter "status=restarting" --format "{{.Names}} {{.Status}}"| grep -v "goose_migration.*Exited (0)" || true)
           
           if [ -n "$CRASHED_CONTAINERS" ]; then
             echo "❌ ERROR: One or more containers crashed or failed to start!"
