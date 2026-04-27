@@ -91,3 +91,5 @@ docker ps -s
 | 15 | fix my ci/cd incase previous steps are failed | :white_check_mark: | currently it do that, but gonna be fragile when doing new update with current logic. |
 | 16 | create unit testing | :white_check_mark: | current unit test are only for backend. |
 | 17 | migrate docker images to gitlab | :black_square_button: | |
+| 18 | coba CDN | :black_square_button: | (optional) |
+| 19 | Convert images to be WEBP format | :black_square_button: | |
