@@ -86,7 +86,7 @@ func TestAuthHandler_Login_Success_SetsCookie(t *testing.T) {
 	if found == nil {
 		t.Fatalf("expected %s cookie", czm.AuthCookieName)
 	}
-	if found != nil && (!found.HttpOnly || found.SameSite != http.SameSiteLaxMode) {
+	if !found.HttpOnly || found.SameSite != http.SameSiteLaxMode {
 		t.Errorf("expected HttpOnly + SameSite=Lax cookie, got %+v", found)
 	}
 }

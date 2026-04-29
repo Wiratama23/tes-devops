@@ -39,4 +39,4 @@ jobs:
 
       - name: Run Unit Tests (Vitest)
         # Using bun test directly since it integrates seamlessly with Vitest
-        run: bun test
+        run: bun run test
