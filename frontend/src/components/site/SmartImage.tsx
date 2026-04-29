@@ -24,6 +24,7 @@ export function SmartImage({ imagePath, alt, ...rest }: SmartImageProps) {
       {...rest}
       src={src}
       alt={alt}
+      quality={85}
       onError={() => {
         if (src !== FALLBACK) setSrc(FALLBACK);
       }}

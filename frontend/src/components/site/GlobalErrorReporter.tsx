@@ -2,11 +2,15 @@
 
 import { useEffect } from "react";
 
-import { installGlobalErrorReporter } from "@/tools/logger";
+import {
+  installGlobalErrorReporter,
+  uninstallGlobalErrorReporter,
+} from "@/tools/logger";
 
 export function GlobalErrorReporter() {
   useEffect(() => {
     installGlobalErrorReporter();
+    return () => uninstallGlobalErrorReporter();
   }, []);
   return null;
 }

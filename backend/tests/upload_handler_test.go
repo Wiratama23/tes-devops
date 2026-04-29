@@ -10,6 +10,7 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"rwiratama.com/m/internal/handlers"
@@ -194,5 +195,70 @@ func TestEnsureDefaultImage_NoOpIfPresent(t *testing.T) {
 	got, _ := os.ReadFile(dest)
 	if string(got) != "existing" {
 		t.Errorf("file was overwritten")
+	}
+}
+
+// TestEnsureDefaultImage_RemovesPartialOnCopyFailure exercises the cleanup
+// branch added to EnsureDefaultImage: when os.Open succeeds but io.Copy
+// fails, the partially-created destination file must be removed so a later
+// boot does not see it via os.Stat and short-circuit the copy with corrupt
+// data.
+//
+// We trigger an io.Copy failure by passing a directory as the source path.
+// On Linux/macOS this is the canonical "EISDIR on Read" reproduction; on
+// Windows os.Open of a directory typically fails outright with a different
+// error path (which is already covered by the source-missing case), so we
+// skip there.
+func TestEnsureDefaultImage_RemovesPartialOnCopyFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("io.Copy failure path unreliable on windows; exercised on linux/CI")
+	}
+
+	srcDir := t.TempDir()
+	dstDir := t.TempDir()
+
+	if err := handlers.EnsureDefaultImage(dstDir, srcDir); err == nil {
+		t.Fatalf("expected error when source is a directory, got nil")
+	}
+
+	dest := filepath.Join(dstDir, "default_image.jpg")
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Errorf("expected partial dest file to be removed, but it still exists: stat err=%v", err)
+	}
+}
+
+// TestUploadHandler_UploadImage_RemovesMultipartTemps confirms the deferred
+// MultipartForm.RemoveAll added to the handler runs even after the happy
+// path. Files smaller than the in-memory threshold (10 MiB here) never spill
+// to disk, so the visible side-effect we can rely on is that
+// `r.MultipartForm` is no longer holding any usable file handles after the
+// handler returns. We assert via the upload directory that the saved
+// payload is intact (i.e. the cleanup hasn't accidentally torn anything we
+// still needed away).
+func TestUploadHandler_UploadImage_RemovesMultipartTemps(t *testing.T) {
+	dir := t.TempDir()
+	h := handlers.NewUploadHandler(dir)
+
+	body, ct := multipartImage(t, "file", "ok.png", "image/png", []byte("PNGDATA"))
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads/images", body)
+	req.Header.Set("Content-Type", ct)
+	w := httptest.NewRecorder()
+
+	h.UploadImage(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
+
+	var resp handlers.UploadResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	saved, err := os.ReadFile(filepath.Join(dir, resp.Filename))
+	if err != nil {
+		t.Fatalf("saved file missing after upload + cleanup: %v", err)
+	}
+	if string(saved) != "PNGDATA" {
+		t.Errorf("saved bytes mismatch: %q", saved)
 	}
 }

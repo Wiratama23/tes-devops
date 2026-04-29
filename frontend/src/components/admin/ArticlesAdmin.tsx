@@ -40,7 +40,7 @@ export function ArticlesAdmin() {
 
   const meQuery = useQuery({
     queryKey: ["auth", "me"],
-    queryFn: me,
+    queryFn: ({ signal }) => me({ signal }),
     staleTime: Infinity,
   });
 
@@ -48,7 +48,7 @@ export function ArticlesAdmin() {
 
   const articlesQuery = useQuery({
     queryKey: articlesKey,
-    queryFn: () => listArticles({ page }),
+    queryFn: ({ signal }) => listArticles({ page, signal }),
   });
 
   const createMutation = useMutation({

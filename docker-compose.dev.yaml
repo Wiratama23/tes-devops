@@ -27,9 +27,6 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=postgres://development_user:admin123@postgres:5432/devdb?sslmode=disable
       - PORT=8080
-      # The host-running Next.js dev server lives at localhost:3000; the
-      # browser hits the API through nginx on localhost:80. Both are listed
-      # explicitly so we don't depend on the in-code default.
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:4000,http://localhost}
       - UPLOADS_DIR=/var/lib/api/uploads
       - DEFAULT_IMAGE_SOURCE=/etc/api/assets/default_image.jpg
@@ -37,8 +34,6 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
     volumes:
       - uploads_dev:/var/lib/api/uploads
-      # Make the bundled default image available so the api container can copy
-      # it into the uploads volume on first start.
       - ./assets/default_image.jpg:/etc/api/assets/default_image.jpg:ro
     depends_on:
       postgres:
@@ -60,7 +55,6 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db_dev
     ports:
-      # Exposed locally so you can connect database GUI tools (like DBeaver or pgAdmin)
       - "5432:5432"
     environment:
       POSTGRES_USER: development_user
@@ -95,27 +89,20 @@ services:
       postgres:
        condition: service_healthy
 
-  # ---------------------------------------------------------------------------
-  # Optional: containerized frontend.
-  # In dev we run Next.js on the host (`bun run dev` in ./frontend) for fast
-  # HMR. To containerize the frontend later, add a Dockerfile under ./frontend
-  # and uncomment the block below — and the matching `proxy_pass` block in
-  # nginx/nginx.conf at `location /`.
-  # ---------------------------------------------------------------------------
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - NEXT_PUBLIC_API_BASE_URL=/api
-  #     - INTERNAL_API_URL=http://nginx/api
-  #   depends_on:
-  #     api:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=/api
+      - INTERNAL_API_URL=http://nginx/api
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - backend-network
 
 volumes:
   pgdata_dev: {}

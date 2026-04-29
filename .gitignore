@@ -135,3 +135,4 @@ yarn-error.log*
 next-env.d.ts
 
 roadmap.md
+coverage/

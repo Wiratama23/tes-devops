@@ -39,7 +39,7 @@ export function ProductsAdmin() {
 
   const meQuery = useQuery({
     queryKey: ["auth", "me"],
-    queryFn: me,
+    queryFn: ({ signal }) => me({ signal }),
     staleTime: Infinity,
   });
 
@@ -47,7 +47,7 @@ export function ProductsAdmin() {
 
   const productsQuery = useQuery({
     queryKey: productsKey,
-    queryFn: () => listProducts({ page }),
+    queryFn: ({ signal }) => listProducts({ page, signal }),
   });
 
   const createMutation = useMutation({

@@ -77,14 +77,27 @@ export const logger = {
   },
 };
 
-let installed = false;
+// Handler refs are stored at module scope so uninstall can remove the exact
+// same function references later. The "installed" flag lives on the window
+// object so it survives module re-evaluation under Fast Refresh / Turbopack
+// HMR — without that, a hot reload would reset a module-local flag while the
+// previous listeners stayed attached, stacking handlers on every reload.
+type ErrorReporterWindow = Window & {
+  __tesdevopsErrorReporterInstalled?: boolean;
+};
+
+let errorHandler: ((event: ErrorEvent) => void) | null = null;
+let rejectionHandler: ((event: PromiseRejectionEvent) => void) | null = null;
 
 // Attaches window.onerror + unhandledrejection so uncaught browser errors are
-// reported automatically. Idempotent.
+// reported automatically. Idempotent across module reloads.
 export function installGlobalErrorReporter() {
-  if (installed || typeof window === "undefined") return;
-  installed = true;
-  window.addEventListener("error", (event) => {
+  if (typeof window === "undefined") return;
+  const w = window as ErrorReporterWindow;
+  if (w.__tesdevopsErrorReporterInstalled) return;
+  w.__tesdevopsErrorReporterInstalled = true;
+
+  errorHandler = (event: ErrorEvent) => {
     safePost(
       buildEntry(
         "error",
@@ -97,16 +110,37 @@ export function installGlobalErrorReporter() {
         event.error?.stack
       )
     );
-  });
-  window.addEventListener("unhandledrejection", (event) => {
+  };
+
+  rejectionHandler = (event: PromiseRejectionEvent) => {
     const reason = event.reason;
     safePost(
       buildEntry(
         "error",
-        reason instanceof Error ? reason : `Unhandled rejection: ${String(reason)}`,
+        reason instanceof Error
+          ? reason
+          : `Unhandled rejection: ${String(reason)}`,
         { kind: "unhandledrejection" },
         reason instanceof Error ? reason.stack : undefined
       )
     );
-  });
+  };
+
+  window.addEventListener("error", errorHandler);
+  window.addEventListener("unhandledrejection", rejectionHandler);
+}
+
+// Detaches the listeners installed by installGlobalErrorReporter. Safe to
+// call when nothing was installed; safe to call repeatedly.
+export function uninstallGlobalErrorReporter() {
+  if (typeof window === "undefined") return;
+  if (errorHandler) {
+    window.removeEventListener("error", errorHandler);
+    errorHandler = null;
+  }
+  if (rejectionHandler) {
+    window.removeEventListener("unhandledrejection", rejectionHandler);
+    rejectionHandler = null;
+  }
+  delete (window as ErrorReporterWindow).__tesdevopsErrorReporterInstalled;
 }

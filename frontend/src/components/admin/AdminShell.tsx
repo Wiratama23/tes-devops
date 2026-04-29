@@ -7,9 +7,10 @@ import {
   Package,
   ShoppingBag,
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/site/ThemeToggle";
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { logger } from "@/tools/logger";
 import { cn } from "@/tools/utils";
-import { logout } from "@/services/auth";
+import { logout, me, refreshToken } from "@/services/auth";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -25,9 +26,86 @@ const NAV = [
   { href: "/admin/articles", label: "Articles", icon: FileText },
 ];
 
+// Refresh token every 30 minutes if user is active, or after any user activity
+const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const INACTIVITY_TIMEOUT = 55 * 60 * 1000; // 55 minutes (token expires in 60 minutes)
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if user is authenticated
+  const { data: user, isLoading, isError } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: () => me(),
+    retry: false,
+  });
+
+  // Mutation to refresh token
+  const refreshMutation = useMutation({
+    mutationFn: refreshToken,
+    onError: (err) => {
+      logger.error("token refresh failed", { kind: "token_refresh", err: String(err) });
+      // If refresh fails, redirect to login
+      router.replace("/admin/login");
+    },
+  });
+
+  // Setup token refresh and inactivity detection
+  useEffect(() => {
+    if (!user) return;
+
+    // Refresh token periodically (every 30 minutes)
+    refreshIntervalRef.current = setInterval(() => {
+      refreshMutation.mutate();
+    }, REFRESH_INTERVAL);
+
+    // Handle user activity to refresh token immediately
+    const handleActivity = () => {
+      // Clear existing inactivity timeout
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+      }
+
+      // Refresh token on activity
+      refreshMutation.mutate();
+
+      // Set new inactivity timeout
+      inactivityTimeoutRef.current = setTimeout(() => {
+        // If no activity for 55 minutes, logout
+        logoutMutation.mutate();
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    // Listen for user activity
+    const events = ["mousedown", "keydown", "scroll", "touchstart", "click"];
+    events.forEach((event) => {
+      document.addEventListener(event, handleActivity);
+    });
+
+    // Initial inactivity timeout
+    inactivityTimeoutRef.current = setTimeout(() => {
+      logoutMutation.mutate();
+    }, INACTIVITY_TIMEOUT);
+
+    return () => {
+      // Cleanup
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+      if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
+      events.forEach((event) => {
+        document.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [user]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && isError) {
+      router.replace("/admin/login");
+    }
+  }, [isLoading, isError, router]);
 
   const logoutMutation = useMutation({
     mutationFn: logout,
@@ -41,6 +119,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       toast.error("Couldn't sign out — try again.");
     },
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (isError || !user) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">

@@ -16,9 +16,9 @@ import (
 // `/api` path so the browser sends it on every protected call. The same JWT
 // can also be used as a `Authorization: Bearer <token>` header by SSR fetches.
 type AuthHandler struct {
-	repo      *repository.UserRepository
-	tokenAuth *jwtauth.JWTAuth
-	tokenTTL  time.Duration
+	repo       *repository.UserRepository
+	tokenAuth  *jwtauth.JWTAuth
+	tokenTTL   time.Duration
 	cookieName string
 	secure     bool
 }
@@ -132,6 +132,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -182,5 +183,72 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(dto); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+// Refresh issues a new JWT token using the claims from the current token.
+// This implements sliding window expiration: as long as the user is active,
+// their token is continuously refreshed and won't expire.
+// This route must be wrapped with jwtauth.Verifier + jwtauth.Authenticator.
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	_, claims, err := jwtauth.FromContext(r.Context())
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract claims from existing token
+	uidRaw, _ := claims["uid"].(string)
+	username, _ := claims["username"].(string)
+	isAdmin, _ := claims["is_admin"].(bool)
+
+	uid, err := uuid.Parse(uidRaw)
+	if err != nil {
+		http.Error(w, "invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Issue new token with extended expiration
+	expires := time.Now().Add(h.tokenTTL)
+	newClaims := map[string]any{
+		"uid":      uid.String(),
+		"username": username,
+		"is_admin": isAdmin,
+		"exp":      expires.Unix(),
+	}
+
+	_, tokenString, err := h.tokenAuth.Encode(newClaims)
+	if err != nil {
+		http.Error(w, "failed to issue token", http.StatusInternalServerError)
+		return
+	}
+
+	// Set new cookie with extended expiration
+	http.SetCookie(w, &http.Cookie{
+		Name:     h.cookieName,
+		Value:    tokenString,
+		Path:     "/",
+		Expires:  expires,
+		HttpOnly: true,
+		Secure:   h.secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// Return new token details
+	resp := LoginResponse{
+		Token: tokenString,
+		User: UserDTO{
+			UID:      uid,
+			Username: username,
+			IsAdmin:  isAdmin,
+		},
+		Expires: expires.Unix(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
 	}
 }

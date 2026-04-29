@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -63,13 +64,27 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "file too large or invalid form", http.StatusBadRequest)
 		return
 	}
+	// Defense in depth: ParseMultipartForm may spill parts to OS temp files
+	// when the in-memory threshold is exceeded. With our 10 MiB cap they
+	// almost always stay in memory, but RemoveAll guarantees disk cleanup
+	// across all return paths.
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "missing file field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	// Always close the multipart reader. Closing can still fail, so we log it.
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("[upload] failed to close multipart file: %v", err)
+		}
+	}()
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	if !h.allowedExt[ext] {
@@ -99,7 +114,12 @@ func (h *UploadHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to create file", http.StatusInternalServerError)
 		return
 	}
-	defer dst.Close()
+	// Closing can fail (e.g. flush/fsync errors). Log it so it doesn't get lost.
+	defer func() {
+		if err := dst.Close(); err != nil {
+			log.Printf("[upload] failed to close destination file: %v", err)
+		}
+	}()
 
 	written, err := io.Copy(dst, file)
 	if err != nil {
@@ -175,15 +195,30 @@ func EnsureDefaultImage(uploadsDir, sourcePath string) error {
 		// Source missing is not fatal — uploads dir is created, just no default.
 		return fmt.Errorf("open default image source: %w", err)
 	}
-	defer src.Close()
+	defer func() {
+		if err := src.Close(); err != nil {
+			log.Printf("[upload] failed to close default image source: %v", err)
+		}
+	}()
 
 	dst, err := os.Create(dest)
 	if err != nil {
 		return fmt.Errorf("create default image: %w", err)
 	}
-	defer dst.Close()
+	defer func() {
+		if err := dst.Close(); err != nil {
+			log.Printf("[upload] failed to close default image destination: %v", err)
+		}
+	}()
 
 	if _, err := io.Copy(dst, src); err != nil {
+		// Drop our handle and the partial file — otherwise os.Stat(dest) on
+		// the next boot will succeed and short-circuit the copy, leaving a
+		// corrupt default_image.jpg in place permanently.
+		if cerr := dst.Close(); cerr != nil {
+			log.Printf("[upload] failed to close default image destination after copy error: %v", cerr)
+		}
+		_ = os.Remove(dest)
 		return fmt.Errorf("copy default image: %w", err)
 	}
 	return nil

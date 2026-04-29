@@ -14,26 +14,31 @@ interface ListOptions {
   // TanStack Query rely on its cache instead.
   revalidate?: number | false;
   tag?: string;
+  // Forwarded from TanStack Query so cancelled queries actually abort the
+  // underlying axios request instead of leaving it in-flight.
+  signal?: AbortSignal;
 }
 
 export async function listProducts({
   page = 1,
   revalidate,
   tag = "products",
+  signal,
 }: ListOptions = {}): Promise<PaginatedProducts> {
   return apiFetch<PaginatedProducts>(
     `/products?page=${page}`,
-    { revalidate, tags: [tag] }
+    { revalidate, tags: [tag], signal }
   );
 }
 
 export async function getProduct(
   id: string,
-  options: { revalidate?: number | false } = {}
+  options: { revalidate?: number | false; signal?: AbortSignal } = {}
 ): Promise<Product> {
   return apiFetch<Product>(`/products/${encodeURIComponent(id)}`, {
     revalidate: options.revalidate,
     tags: [`product:${id}`],
+    signal: options.signal,
   });
 }
 

@@ -9,26 +9,30 @@ interface ListOptions {
   page?: number;
   revalidate?: number | false;
   tag?: string;
+  signal?: AbortSignal;
 }
 
 export async function listArticles({
   page = 1,
   revalidate,
   tag = "articles",
+  signal,
 }: ListOptions = {}): Promise<PaginatedArticles> {
   return apiFetch<PaginatedArticles>(`/articles?page=${page}`, {
     revalidate,
     tags: [tag],
+    signal,
   });
 }
 
 export async function getArticle(
   id: number | string,
-  options: { revalidate?: number | false } = {}
+  options: { revalidate?: number | false; signal?: AbortSignal } = {}
 ): Promise<Article> {
   return apiFetch<Article>(`/articles/${id}`, {
     revalidate: options.revalidate,
     tags: [`article:${id}`],
+    signal: options.signal,
   });
 }
 

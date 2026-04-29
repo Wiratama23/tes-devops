@@ -2,11 +2,13 @@ name: Unit Tests
 
 on:
     push:
-        branches:
-            - '**'
+      paths:
+        - 'backend/**'
+        - '.github/workflows/go-test.yml'
     pull_request:
-        branches:
-            - '**'
+      branches: [ "main" ]
+      paths:
+        - 'backend/**'
 
 jobs:
     golangci:

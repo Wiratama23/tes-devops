@@ -56,7 +56,12 @@ func (h *LogHandler) Receive(w http.ResponseWriter, r *http.Request) {
 	msg := truncate(entry.Message, h.maxMessage)
 	stack := truncate(entry.Stack, h.maxStack)
 
-	meta, _ := json.Marshal(entry.Meta)
+	meta, metaErr := json.Marshal(entry.Meta)
+	if metaErr != nil {
+		// Meta is best-effort; failing to marshal it shouldn't block logging.
+		log.Printf("[client-logger] failed to marshal meta: %v", metaErr)
+		meta = []byte(`{}`)
+	}
 
 	log.Printf(
 		"[client-%s] %s url=%q ua=%q meta=%s stack=%q",

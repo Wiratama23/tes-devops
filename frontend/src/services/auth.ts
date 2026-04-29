@@ -15,6 +15,12 @@ export async function logout(): Promise<void> {
   await apiFetch<void>("/auth/logout", { method: "POST" });
 }
 
-export async function me(): Promise<AuthUser> {
-  return apiFetch<AuthUser>("/auth/me", { method: "GET" });
+export async function me({
+  signal,
+}: { signal?: AbortSignal } = {}): Promise<AuthUser> {
+  return apiFetch<AuthUser>("/auth/me", { method: "GET", signal });
+}
+
+export async function refreshToken(): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("/auth/refresh", { method: "POST" });
 }

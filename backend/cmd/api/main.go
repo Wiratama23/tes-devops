@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -93,7 +97,7 @@ func main() {
 	articleHandler := handlers.NewArticleHandler(pool)
 	productHandler := handlers.NewProductHandler(pool)
 	authHandler := handlers.NewAuthHandler(pool, tokenAuth, handlers.AuthHandlerConfig{
-		TokenTTL:   24 * time.Hour,
+		TokenTTL:   1 * time.Hour,
 		CookieName: czm.AuthCookieName,
 		Secure:     cookieSecure,
 	})
@@ -136,6 +140,7 @@ func main() {
 				r.Use(czm.JWTVerifier(tokenAuth))
 				r.Use(jwtauth.Authenticator(tokenAuth))
 				r.Get("/me", authHandler.Me)
+				r.Post("/refresh", authHandler.Refresh)
 			})
 		})
 
@@ -213,10 +218,43 @@ func main() {
 		}
 	})
 
-	// Start server
-	fmt.Printf("Server listening on :%s\n", port)
-	if err := http.ListenAndServe(":"+port, router); err != nil {
-		log.Fatalf("Server error: %v", err)
+	// Start server with graceful shutdown. The deferred pool.Close earlier in
+	// main() runs after Shutdown returns, so the pgx pool drains in-flight
+	// queries instead of getting yanked.
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
+	}
+
+	serverErrCh := make(chan error, 1)
+	go func() {
+		fmt.Printf("Server listening on :%s\n", port)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErrCh <- err
+			return
+		}
+		serverErrCh <- nil
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrCh:
+		if err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+		return
+	case sig := <-quit:
+		log.Printf("received %s, draining in-flight requests…", sig)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("forced shutdown: %v", err)
+	} else {
+		log.Println("server shut down cleanly")
 	}
 }
 

@@ -14,17 +14,17 @@ import { listUsers } from "@/services/users";
 export function DashboardStats() {
   const products = useQuery({
     queryKey: ["products", "page", 1],
-    queryFn: () => listProducts({ page: 1 }),
+    queryFn: ({ signal }) => listProducts({ page: 1, signal }),
     staleTime: 60_000,
   });
   const articles = useQuery({
     queryKey: ["articles", "page", 1],
-    queryFn: () => listArticles({ page: 1 }),
+    queryFn: ({ signal }) => listArticles({ page: 1, signal }),
     staleTime: 60_000,
   });
   const users = useQuery({
     queryKey: ["users"],
-    queryFn: listUsers,
+    queryFn: ({ signal }) => listUsers({ signal }),
     staleTime: 60_000,
   });
 
