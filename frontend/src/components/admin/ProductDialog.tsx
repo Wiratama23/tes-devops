@@ -110,6 +110,7 @@ export function ProductDialog({
     }
   }, [open, product, reset]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const imagePathValue = watch("image_path");
 
   async function handleFormSubmit(values: FormValues) {

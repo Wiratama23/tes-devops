@@ -15,12 +15,12 @@ export default function ContactPage() {
           Contact
         </p>
         <h1 className="text-4xl font-semibold tracking-tight">
-          Tell us what you're building.
+          Tell us what you&apos;re building.
         </h1>
         <p className="text-lg leading-relaxed text-muted-foreground">
           The form is validated client-side with Zod and sends a structured log
           to the API on submit. Hook it up to your favourite mailbox or CRM
-          when you're ready.
+          when you&apos;re ready.
         </p>
       </header>
 

@@ -37,13 +37,14 @@ export function ImageDropzone({
   const [rejection, setRejection] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!value) {
-      setPreviewUrl(initialPreviewUrl ?? null);
-      return;
+    if (value) {
+      const url = URL.createObjectURL(value);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
     }
-    const url = URL.createObjectURL(value);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
+    // Reset to initial preview when value is cleared
+    setPreviewUrl(initialPreviewUrl ?? null);
   }, [value, initialPreviewUrl]);
 
   const { getRootProps, getInputProps, isDragActive, isFocused, open } =

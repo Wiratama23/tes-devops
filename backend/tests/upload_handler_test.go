@@ -93,7 +93,9 @@ func TestUploadHandler_UploadImage_MissingField(t *testing.T) {
 	if err := w2.WriteField("not_file", "x"); err != nil {
 		t.Fatalf("write field: %v", err)
 	}
-	w2.Close()
+	if err := w2.Close(); err != nil {
+		t.Fatalf("close writer: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/uploads/images", &buf)
 	req.Header.Set("Content-Type", w2.FormDataContentType())

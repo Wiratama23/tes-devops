@@ -43,6 +43,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     retry: false,
   });
 
+  // Mutation to logout
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      toast.success("Signed out");
+      router.replace("/admin/login");
+      router.refresh();
+    },
+    onError: (err) => {
+      logger.error("logout failed", { kind: "logout", err: String(err) });
+      toast.error("Couldn't sign out — try again.");
+    },
+  });
+
   // Mutation to refresh token
   const refreshMutation = useMutation({
     mutationFn: refreshToken,
@@ -98,7 +112,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         document.removeEventListener(event, handleActivity);
       });
     };
-  }, [user]);
+  }, [user, logoutMutation, refreshMutation]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -106,19 +120,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       router.replace("/admin/login");
     }
   }, [isLoading, isError, router]);
-
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSuccess: () => {
-      toast.success("Signed out");
-      router.replace("/admin/login");
-      router.refresh();
-    },
-    onError: (err) => {
-      logger.error("logout failed", { kind: "logout", err: String(err) });
-      toast.error("Couldn't sign out — try again.");
-    },
-  });
 
   if (isLoading) {
     return (

@@ -16,7 +16,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       try {
         await me();
         // User is authenticated, cookie will be sent automatically on future requests
-      } catch (error) {
+      } catch {
         // Not authenticated, that's ok - they'll be redirected to login if needed
       }
     };

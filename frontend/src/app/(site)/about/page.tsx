@@ -35,7 +35,7 @@ export default function AboutPage() {
         </h1>
         <p className="text-lg leading-relaxed text-muted-foreground">
           Tesdevops is a reference implementation of a production-grade storefront
-          built on Go, Next.js 16, Postgres, and Bun. It's intentionally
+          built on Go, Next.js 16, Postgres, and Bun. It&apos;s intentionally
           opinionated so the codebase stays easy to onboard onto.
         </p>
       </header>

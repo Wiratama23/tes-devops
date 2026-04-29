@@ -11,7 +11,6 @@ function safePost(entry: ClientLogEntry): void {
   if (typeof window === "undefined") {
     // On the server we just forward to stderr. The Go API container picks it
     // up indirectly through the actual SSR fetch error if any.
-    // eslint-disable-next-line no-console
     console[entry.level === "info" ? "log" : entry.level](
       `[client-${entry.level}]`,
       entry.message,

@@ -12,7 +12,7 @@ export default function ArticleNotFound() {
         Article not found
       </h1>
       <p className="text-muted-foreground">
-        We can't find that article. It may have been removed.
+        We can&apos;t find that article. It may have been removed.
       </p>
       <Button asChild>
         <Link href="/articles">Back to articles</Link>
