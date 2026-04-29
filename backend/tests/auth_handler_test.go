@@ -77,13 +77,15 @@ func TestAuthHandler_Login_Success_SetsCookie(t *testing.T) {
 
 	cookies := w.Result().Cookies()
 	var found *http.Cookie
+	ok := false
 	for _, c := range cookies {
 		if c.Name == czm.AuthCookieName {
 			found = c
+			ok = true
 			break
 		}
 	}
-	if found == nil {
+	if !ok {
 		t.Fatalf("expected %s cookie", czm.AuthCookieName)
 	}
 	if !found.HttpOnly || found.SameSite != http.SameSiteLaxMode {
