@@ -146,25 +146,18 @@ func (r *ArticleRepository) Delete(ctx context.Context, articleID int) error {
 	return nil
 }
 
-// GetAllWithPagination retrieves articles with pagination (uses date_created index)
-func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, offset int) ([]models.Article, error) {
-	// Get total count
-	// var totalCount int
-	// err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM articles").Scan(&totalCount)
-	// if err != nil {
-	// 	return nil, 0, fmt.Errorf("failed to count articles: %w", err)
-	// }
+// GetAllWithPagination retrieves articles with pagination (uses date_created
+// index) and returns the total row count alongside the page so the frontend
+// can render an accurate "Page N of M" pager.
+func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, offset int) ([]models.Article, int, error) {
+	var totalCount int
+	if err := r.pool.QueryRow(ctx, articleCountSQL).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("failed to count articles: %w", err)
+	}
 
-	query := `
-		SELECT articles_id, uid, title, article_text, date_created, updated_at
-		FROM articles
-		ORDER BY date_created DESC
-		LIMIT $1 OFFSET $2
-	`
-
-	rows, err := r.pool.Query(ctx, query, limit, offset)
+	rows, err := r.pool.Query(ctx, articlePaginatedSelectSQL, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query articles with pagination: %w", err)
+		return nil, 0, fmt.Errorf("failed to query articles with pagination: %w", err)
 	}
 	defer rows.Close()
 
@@ -181,8 +174,26 @@ func (r *ArticleRepository) GetAllWithPagination(ctx context.Context, limit, off
 		return article, err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to collect articles: %w", err)
+		return nil, 0, fmt.Errorf("failed to collect articles: %w", err)
 	}
 
-	return articles, nil
+	return articles, totalCount, nil
 }
+
+// SQL strings are exported as constants so tests can reuse the exact text
+// when wiring pgxmock expectations.
+const (
+	// Approximate row count from the planner statistics. ~1ms regardless of
+	// table size — vastly cheaper than COUNT(*) on a million-row table.
+	// reltuples is maintained by autovacuum/ANALYZE; a brand-new table not
+	// yet analyzed reports -1, which we clamp to 0 so the pager doesn't
+	// crash. Run `ANALYZE articles` after large bulk loads to refresh it.
+	articleCountSQL = `SELECT GREATEST(reltuples, 0)::BIGINT FROM pg_class WHERE relname = 'articles'`
+
+	articlePaginatedSelectSQL = `
+		SELECT articles_id, uid, title, article_text, date_created, updated_at
+		FROM articles
+		ORDER BY date_created DESC
+		LIMIT $1 OFFSET $2
+	`
+)

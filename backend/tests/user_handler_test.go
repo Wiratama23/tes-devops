@@ -22,15 +22,15 @@ const (
 	userInsertSQL = `
 		INSERT INTO users (username, email)
 		VALUES ($1, $2)
-		RETURNING uid, username, email, created_at, updated_at
+		RETURNING uid, username, email, is_admin, created_at, updated_at
 	`
 	userSelectByIDSQL = `
-		SELECT uid, username, email, created_at, updated_at
+		SELECT uid, username, email, is_admin, created_at, updated_at
 		FROM users
 		WHERE uid = $1
 	`
 	userSelectAllSQL = `
-		SELECT uid, username, email, created_at, updated_at
+		SELECT uid, username, email, is_admin, created_at, updated_at
 		FROM users
 		ORDER BY created_at DESC
 	`
@@ -38,14 +38,16 @@ const (
 		UPDATE users
 		SET username = $2, email = $3, updated_at = CURRENT_TIMESTAMP
 		WHERE uid = $1
-		RETURNING uid, username, email, created_at, updated_at
+		RETURNING uid, username, email, is_admin, created_at, updated_at
 	`
 	userDeleteSQL = `DELETE FROM users WHERE uid = $1`
 )
 
+var userColumns = []string{"uid", "username", "email", "is_admin", "created_at", "updated_at"}
+
 func userRows(uid uuid.UUID, username, email string, ts time.Time) *pgxmock.Rows {
-	return pgxmock.NewRows([]string{"uid", "username", "email", "created_at", "updated_at"}).
-		AddRow(uid, username, email, ts, ts)
+	return pgxmock.NewRows(userColumns).
+		AddRow(uid, username, email, false, ts, ts)
 }
 
 // CreateUser ----------------------------------------------------------------
@@ -183,9 +185,9 @@ func TestUserHandler_GetAllUsers_WithRows(t *testing.T) {
 	now := time.Now().UTC()
 
 	mock.ExpectQuery(userSelectAllSQL).
-		WillReturnRows(pgxmock.NewRows([]string{"uid", "username", "email", "created_at", "updated_at"}).
-			AddRow(uid1, "alice", "a@example.com", now, now).
-			AddRow(uid2, "bob", "b@example.com", now, now))
+		WillReturnRows(pgxmock.NewRows(userColumns).
+			AddRow(uid1, "alice", "a@example.com", false, now, now).
+			AddRow(uid2, "bob", "b@example.com", true, now, now))
 
 	h := handlers.NewUserHandler(mock)
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)
@@ -210,7 +212,7 @@ func TestUserHandler_GetAllUsers_EmptyReturnsArray(t *testing.T) {
 	mock := newMockPool(t)
 
 	mock.ExpectQuery(userSelectAllSQL).
-		WillReturnRows(pgxmock.NewRows([]string{"uid", "username", "email", "created_at", "updated_at"}))
+		WillReturnRows(pgxmock.NewRows(userColumns))
 
 	h := handlers.NewUserHandler(mock)
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)

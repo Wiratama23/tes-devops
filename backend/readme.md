@@ -1,3 +1,116 @@
+### Auth API
+
+#### 1. Login
+```
+POST /api/auth/login
+Content-Type: application/json
+
+Request Body:
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+Response (200 OK):
+{
+  "token": "<jwt>",
+  "user": {
+    "uid": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "admin",
+    "email": "admin@example.com",
+    "is_admin": true
+  },
+  "expires": 1735689600
+}
+
+Side effect: sets HttpOnly `auth_token` cookie (Path=/, SameSite=Lax,
+Secure if AUTH_COOKIE_SECURE=true). The cookie is also accepted by all
+JWT-protected routes alongside the `Authorization: Bearer` header.
+```
+
+#### 2. Logout
+```
+POST /api/auth/logout
+
+Response (204 No Content) — clears the `auth_token` cookie.
+```
+
+#### 3. Me (whoami)
+```
+GET /api/auth/me            (requires JWT)
+
+Response (200 OK):
+{
+  "uid": "...",
+  "username": "admin",
+  "email": "admin@example.com",
+  "is_admin": true
+}
+```
+
+---
+
+### Logging API
+
+#### Receive client log
+```
+POST /api/logs              (public, body capped at 1 MiB)
+Content-Type: application/json
+
+Request Body:
+{
+  "level": "error",          // info | warn | error (defaults to error)
+  "message": "TypeError: x is undefined",
+  "stack": "...",
+  "url": "/admin/products",
+  "user_agent": "Mozilla/5.0 ...",
+  "meta": { "any": "json" }
+}
+
+Response (204 No Content)
+```
+
+Server emits a single line to its standard log:
+```
+[client-error] TypeError: ... url="/admin/products" ua="..." meta={...} stack="..."
+```
+
+---
+
+### Uploads API
+
+#### Upload image (admin-only)
+```
+POST /api/uploads/images    (requires JWT with is_admin=true, max 10 MiB)
+Content-Type: multipart/form-data
+
+Form fields:
+- file: image file (.jpg/.jpeg/.png/.webp/.gif)
+
+Response (201 Created):
+{
+  "path": "assets/20260429-3f9b2d8e7a.png",
+  "url":  "/api/assets/20260429-3f9b2d8e7a.png",
+  "filename": "20260429-3f9b2d8e7a.png",
+  "size": 12345
+}
+```
+
+#### Serve uploaded asset (public)
+```
+GET /api/assets/{filename}
+Cache-Control: public, max-age=86400
+
+Response (200 OK):  binary image
+Response (404):     file not in UPLOADS_DIR
+Response (400):     filename contains traversal characters
+```
+
+The bundled `assets/default_image.jpg` is copied into `UPLOADS_DIR` on API
+startup so `GET /api/assets/default_image.jpg` always resolves.
+
+---
+
 ### Users API
 
 #### 1. Create User
@@ -16,6 +129,7 @@ Response (201 Created):
   "uid": "550e8400-e29b-41d4-a716-446655440000",
   "username": "john_doe",
   "email": "john@example.com",
+  "is_admin": false,
   "created_at": "2026-04-19T10:30:00Z",
   "updated_at": "2026-04-19T10:30:00Z"
 }
@@ -31,6 +145,7 @@ Response (200 OK):
     "uid": "550e8400-e29b-41d4-a716-446655440000",
     "username": "john_doe",
     "email": "john@example.com",
+    "is_admin": false,
     "created_at": "2026-04-19T10:30:00Z",
     "updated_at": "2026-04-19T10:30:00Z"
   },
@@ -118,17 +233,15 @@ Response (201 Created):
 #### 2. Get All Articles
 ```
 GET /articles
-GET /articles?limit=10
-GET /articles?limit=10&offset=0
+GET /articles?page=2
 
 Query Parameters:
-- limit: Number of articles to fetch (default: 50, max recommended: 100)
+- page: fixed to only fetch 10 articles
 - offset: Number of articles to skip (default: 0)
 
 Examples:
 - GET /articles - Fetch 10 random articles
-- GET /articles?page=2 - Fetch 10 articles (default number) for page 1
-- GET /articles?page=2&limit=20 - Fetch 20 articles skipping the first 10
+- GET /articles?page=2 - Fetch 10 articles with offset of 10
 
 Response (200 OK):
 {
@@ -257,17 +370,14 @@ Response (201 Created):
 #### 2. Get All Products
 ```
 GET /products
-GET /products?limit=25
-GET /products?limit=25&offset=0
+GET /products?pages=2
 
 Query Parameters:
-- limit: Number of products to fetch (default: 100, max recommended: 200)
-- offset: Number of products to skip (default: 0)
+- page: fixed to only fetch 10 products
 
 Examples:
 - GET /products - Fetch 10 random products
-- GET /products?limit=25 - Fetch 25 random products
-- GET /products?limit=20&offset=20 - Fetch 20 products skipping the first 20
+- GET /products?page=2 - Fetch 10 products with offset of 10
 
 Response (200 OK):
 {

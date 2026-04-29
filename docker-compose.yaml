@@ -38,6 +38,14 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=${DOCKER_DB_URL}
       - PORT=${PORT}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - UPLOADS_DIR=/var/lib/api/uploads
+      - DEFAULT_IMAGE_SOURCE=/etc/api/assets/default_image.jpg
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-true}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    volumes:
+      - uploads:/var/lib/api/uploads
+      - ./assets/default_image.jpg:/etc/api/assets/default_image.jpg:ro
     depends_on:
       postgres:
        condition: service_healthy
@@ -99,8 +107,33 @@ services:
       postgres:
        condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # Optional: containerized frontend (production).
+  # Until the frontend is containerized, the operator runs Next.js on the
+  # host or behind another reverse proxy. To switch over: add a production
+  # Dockerfile to ./frontend, build & push it as a GHCR image, then
+  # uncomment the block below + the matching `proxy_pass` block at
+  # `location /` in nginx/nginx.conf.
+  # ---------------------------------------------------------------------------
+  # frontend:
+  #   image: ghcr.io/wiratama23/tes-devops-frontend:latest
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   environment:
+  #     - NEXT_PUBLIC_API_BASE_URL=/api
+  #     - INTERNAL_API_URL=http://nginx/api
+  #     - NODE_ENV=production
+  #   depends_on:
+  #     api:
+  #       condition: service_healthy
+  #   networks:
+  #     - backend-network
+
 volumes:
   pgdata: {}
+  uploads: {}
 
 networks:
   db:

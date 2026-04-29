@@ -15,6 +15,7 @@ require (
 	github.com/pashagolub/pgxmock/v5 v5.0.1
 	github.com/pressly/goose/v3 v3.20.0
 	github.com/shopspring/decimal v1.3.1
+	golang.org/x/crypto v0.49.0
 )
 
 require (
@@ -43,7 +44,6 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valllabh/ocsf-schema-golang v1.0.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
