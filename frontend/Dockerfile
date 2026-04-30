@@ -42,7 +42,7 @@ ENV PORT=4000
 # RUN groupadd --system --gid 1001 bun \
 #  && useradd  --system --uid 1001 --gid 1001 nextjs
 
-RUN useradd --system --uid 1001 --gid 1001 nextjs
+RUN useradd --system --uid 1001 nextjs
 
 # Copy public directory
 COPY --from=builder /app/public ./public
