@@ -94,7 +94,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
       - NEXT_PUBLIC_API_BASE_URL=/api
       - INTERNAL_API_URL=http://nginx/api

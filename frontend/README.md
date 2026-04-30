@@ -1,75 +1,39 @@
-# Frontend - Next.js Admin & E-Commerce PlatformThis is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend - Next.js Admin & E-Commerce Platform
 
+A modern, full-featured frontend application built with [Next.js](https://nextjs.org) for managing articles and products with admin functionality.
 
+## 🚀 Features
 
-A modern, full-featured frontend application built with [Next.js](https://nextjs.org) for managing articles and products with admin functionality.## Getting Started
-
-
-
-## 🚀 FeaturesFirst, run the development server:
-
-
-
-- **Next.js 14+** - React framework with App Router```bash
-
-- **TypeScript** - Full type safetynpm run dev
-
-- **Responsive UI** - Components and UI library# or
-
-- **Admin Dashboard** - Administrative interface for content managementyarn dev
-
-- **Article Management** - Create, read, update, delete articles# or
-
-- **Product Management** - Manage e-commerce productspnpm dev
-
-- **Authentication** - User authentication and authorization# or
-
-- **File Uploads** - Handle image and file uploadsbun dev
-
-- **State Management** - Query caching and state handling```
-
+- **Next.js 14+** - React framework with App Router
+- **TypeScript** - Full type safety
+- **Responsive UI** - Components and UI library
+- **Admin Dashboard** - Administrative interface for content management
+- **Article Management** - Create, read, update, delete articles
+- **Product Management** - Manage e-commerce products
+- **Authentication** - User authentication and authorization
+- **File Uploads** - Handle image and file uploads
+- **State Management** - Query caching and state handling
 - **Unit Testing** - Vitest and MSW for testing
-
-- **Linting & Formatting** - ESLint configurationOpen [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
+- **Linting & Formatting** - ESLint configuration
 - **Bun Runtime** - Fast JavaScript runtime
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## 📋 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
 ```
-
-src/## Learn More
-
+src/
 ├── app/                 # Next.js App Router pages
-
-│   ├── (admin)/        # Admin dashboard routesTo learn more about Next.js, take a look at the following resources:
-
+│   ├── (admin)/        # Admin dashboard routes
 │   ├── (site)/         # Public site routes
-
-│   ├── layout.tsx      # Root layout- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-
-│   ├── providers.tsx   # App providers (QueryClient, etc.)- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
+│   ├── layout.tsx      # Root layout
+│   ├── providers.tsx   # App providers (QueryClient, etc.)
 │   └── globals.css     # Global styles
-
-├── components/         # React componentsYou can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
+├── components/         # React components
 │   ├── admin/          # Admin-specific components
-
-│   ├── articles/       # Article-related components## Deploy on Vercel
-
+│   ├── articles/       # Article-related components
 │   ├── products/       # Product-related components
-
-│   ├── site/           # Public site componentsThe easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
+│   ├── site/           # Public site components
 │   └── ui/             # Reusable UI components
-
-├── services/           # API service callsCheck out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
+├── services/           # API service calls
 │   ├── articles.ts     # Article API integration
 │   ├── auth.ts         # Authentication service
 │   ├── products.ts     # Product API integration
@@ -84,7 +48,7 @@ src/## Learn More
 │   └── utils.ts        # General utilities
 ├── types/              # TypeScript type definitions
 │   └── api.ts          # API response types
-└── proxy.ts            # API proxy configuration
+└── middleware.ts        # Admin route auth middleware
 
 tests/                  # Test files
 ├── setup.ts            # Test configuration

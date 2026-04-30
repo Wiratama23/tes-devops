@@ -12,7 +12,7 @@ export const config = {
   matcher: ["/admin/:path*"],
 };
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) {

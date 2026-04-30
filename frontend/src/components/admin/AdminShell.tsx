@@ -29,12 +29,14 @@ const NAV = [
 // Refresh token every 30 minutes if user is active, or after any user activity
 const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
 const INACTIVITY_TIMEOUT = 55 * 60 * 1000; // 55 minutes (token expires in 60 minutes)
+const ACTIVITY_THROTTLE = 60 * 1000; // Throttle activity-triggered refresh to at most once per minute
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRefreshRef = useRef<number>(0);
 
   // Check if user is authenticated
   const { data: user, isLoading, isError } = useQuery({
@@ -76,21 +78,25 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       refreshMutation.mutate();
     }, REFRESH_INTERVAL);
 
-    // Handle user activity to refresh token immediately
+    // Handle user activity — only resets the inactivity timeout.
+    // Triggers a token refresh at most once per ACTIVITY_THROTTLE interval
+    // to avoid flooding the API on high-frequency events like scroll.
     const handleActivity = () => {
-      // Clear existing inactivity timeout
+      // Reset the inactivity timeout on every event
       if (inactivityTimeoutRef.current) {
         clearTimeout(inactivityTimeoutRef.current);
       }
-
-      // Refresh token on activity
-      refreshMutation.mutate();
-
-      // Set new inactivity timeout
       inactivityTimeoutRef.current = setTimeout(() => {
         // If no activity for 55 minutes, logout
         logoutMutation.mutate();
       }, INACTIVITY_TIMEOUT);
+
+      // Throttle the refresh call
+      const now = Date.now();
+      if (now - lastActivityRefreshRef.current >= ACTIVITY_THROTTLE) {
+        lastActivityRefreshRef.current = now;
+        refreshMutation.mutate();
+      }
     };
 
     // Listen for user activity
