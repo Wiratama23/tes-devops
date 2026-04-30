@@ -39,8 +39,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=4000
 
 # Create non-root user for security
-RUN groupadd --system --gid 1001 bun \
- && useradd  --system --uid 1001 --gid 1001 nextjs
+# RUN groupadd --system --gid 1001 bun \
+#  && useradd  --system --uid 1001 --gid 1001 nextjs
 
 # Copy public directory
 COPY --from=builder /app/public ./public
