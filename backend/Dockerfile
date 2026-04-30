@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o api-server ./cmd/api
 # Build the Go binary for the Seeder
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o seeder ./cmd/seed
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o admin-seeder ./cmd/adminseed
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o admin-seeder ./cmd/admin-seed
 
 # -- Stage 2: Run --
 FROM alpine:latest  
