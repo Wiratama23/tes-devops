@@ -95,26 +95,21 @@ services:
       postgres:
        condition: service_healthy
 
-  # ---------------------------------------------------------------------------
-  # Optional: containerized frontend (kept in lock-step with prod compose).
-  # Mirrors the block in docker-compose.yaml so the test stack stays parallel
-  # to production once the frontend is containerized.
-  # ---------------------------------------------------------------------------
-  # frontend:
-  #   image: ghcr.io/wiratama23/tes-devops-frontend:latest
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   environment:
-  #     - NEXT_PUBLIC_API_BASE_URL=/api
-  #     - INTERNAL_API_URL=http://nginx/api
-  #     - NODE_ENV=production
-  #   depends_on:
-  #     api:
-  #       condition: service_healthy
-  #   networks:
-  #     - backend-network
+  frontend:
+    image: ghcr.io/wiratama23/tes-devops-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=/api
+      - INTERNAL_API_URL=http://nginx/api
+      - NODE_ENV=production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - backend-network
 
 volumes:
   pgdata: {}

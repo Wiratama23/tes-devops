@@ -4,7 +4,7 @@ import {
   AUTH_COOKIE_NAME,
   decodeAuthToken,
   isAdminFromClaims,
-} from "@/tools/auth";
+} from "./tools/auth";
 
 // Matches /admin and everything below it. /admin/login is allowed through
 // inside the proxy body so the login page can render while logged out.
@@ -12,7 +12,7 @@ export const config = {
   matcher: ["/admin/:path*"],
 };
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname === "/admin/login" || pathname.startsWith("/admin/login/")) {

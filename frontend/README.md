@@ -48,7 +48,7 @@ src/
 │   └── utils.ts        # General utilities
 ├── types/              # TypeScript type definitions
 │   └── api.ts          # API response types
-└── middleware.ts        # Admin route auth middleware
+└── proxy.ts        # Admin route auth proxy
 
 tests/                  # Test files
 ├── setup.ts            # Test configuration
