@@ -1,31 +1,34 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import useSWR from "swr";
 import { FileText, Package, Users } from "lucide-react";
 
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { ArticleCardSkeleton } from "@/components/articles/ArticleCardSkeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listArticles } from "@/services/articles";
-import { listProducts } from "@/services/products";
-import { listUsers } from "@/services/users";
+import { listArticles } from "@/services/client/articles";
+import { listProducts } from "@/services/client/products";
+import { listUsers } from "@/services/client/users";
+import type { Article, PaginatedArticles, PaginatedProducts, User } from "@/types/api";
 
 export function DashboardStats() {
-  const products = useQuery({
-    queryKey: ["products", "page", 1],
-    queryFn: ({ signal }) => listProducts({ page: 1, signal }),
-    staleTime: 60_000,
-  });
-  const articles = useQuery({
-    queryKey: ["articles", "page", 1],
-    queryFn: ({ signal }) => listArticles({ page: 1, signal }),
-    staleTime: 60_000,
-  });
-  const users = useQuery({
-    queryKey: ["users"],
-    queryFn: ({ signal }) => listUsers({ signal }),
-    staleTime: 60_000,
+  const products = useSWR<PaginatedProducts>(
+    "/products?page=1",
+    () => listProducts({ page: 1 }),
+    {
+      dedupingInterval: 60_000,
+    }
+  );
+  const articles = useSWR<PaginatedArticles>(
+    "/articles?page=1",
+    () => listArticles({ page: 1 }),
+    {
+      dedupingInterval: 60_000,
+    }
+  );
+  const users = useSWR<User[]>("/users", () => listUsers(), {
+    dedupingInterval: 60_000,
   });
 
   return (
@@ -34,7 +37,13 @@ export function DashboardStats() {
         <StatCard
           icon={<Package className="h-4 w-4" />}
           label="Products on first page"
-          value={products.isLoading ? null : products.data?.data.length ?? 0}
+          value={
+            products.isLoading
+              ? null
+              : Array.isArray(products.data?.data)
+              ? products.data.data.length
+              : 0
+          }
         />
         <StatCard
           icon={<FileText className="h-4 w-4" />}
@@ -52,7 +61,7 @@ export function DashboardStats() {
         <h2 className="text-lg font-semibold tracking-tight">
           Latest articles
         </h2>
-        {articles.isLoading ? (
+    {articles.isLoading ? (
           <div className="grid gap-4 md:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <ArticleCardSkeleton key={i} />
@@ -60,10 +69,11 @@ export function DashboardStats() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-3">
-            {(articles.data?.data ?? []).slice(0, 3).map((article) => (
+            {(articles.data?.data ?? []).slice(0, 3).map((article: Article) => (
               <ArticleCard key={article.articles_id} article={article} />
             ))}
-            {articles.data && articles.data.data.length === 0 ? (
+            {Array.isArray(articles.data?.data) &&
+            articles.data.data.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No articles yet — head to{" "}
                 <a className="underline" href="/admin/articles">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import useSWR, { useSWRConfig } from "swr";
+import useSWRMutation from "swr/mutation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -18,100 +19,126 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { logger } from "@/tools/logger";
-import { me } from "@/services/auth";
+import { me } from "@/services/client/auth";
 import {
   createArticle,
   deleteArticle,
   listArticles,
   updateArticle,
-} from "@/services/articles";
-import type { Article, PaginatedArticles } from "@/types/api";
+} from "@/services/client/articles";
+import type { Article, AuthUser, PaginatedArticles } from "@/types/api";
 
 function stripHtml(value: string): string {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function ArticlesAdmin() {
-  const queryClient = useQueryClient();
+  const { mutate } = useSWRConfig();
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Article | undefined>(undefined);
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState<Article | null>(null);
 
-  const meQuery = useQuery({
-    queryKey: ["auth", "me"],
-    queryFn: ({ signal }) => me({ signal }),
-    staleTime: Infinity,
+  const meQuery = useSWR<AuthUser>("/auth/me", () => me(), {
+    revalidateOnFocus: false,
+    dedupingInterval: 10 * 60 * 1000,
   });
 
-  const articlesKey = useMemo(() => ["articles", "page", page] as const, [page]);
+  const articlesKey = useMemo(() => `/articles?page=${page}`, [page]);
 
-  const articlesQuery = useQuery({
-    queryKey: articlesKey,
-    queryFn: ({ signal }) => listArticles({ page, signal }),
-  });
+  const articlesQuery = useSWR<PaginatedArticles>(articlesKey, () =>
+    listArticles({ page })
+  );
 
-  const createMutation = useMutation({
-    mutationFn: createArticle,
-    onSuccess: () => {
-      toast.success("Article created");
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
-    },
-    onError: (err) => {
-      logger.error("create article failed", { kind: "admin.article.create", err: String(err) });
-      toast.error("Failed to create article.");
-    },
-  });
+  const invalidateArticles = () =>
+    mutate(
+      (key: string | readonly unknown[]) =>
+        typeof key === "string" && key.startsWith("/articles")
+    );
 
-  const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      values,
-    }: {
-      id: number;
-      values: Parameters<typeof updateArticle>[1];
-    }) => updateArticle(id, values),
-    onSuccess: () => {
-      toast.success("Article updated");
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
-    },
-    onError: (err) => {
-      logger.error("update article failed", { kind: "admin.article.update", err: String(err) });
-      toast.error("Failed to update article.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteArticle,
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ["articles"] });
-      const snapshot =
-        queryClient.getQueryData<PaginatedArticles>(articlesKey);
-      if (snapshot) {
-        queryClient.setQueryData<PaginatedArticles>(articlesKey, {
-          ...snapshot,
-          data: snapshot.data.filter((a) => a.articles_id !== Number(id)),
+  const createMutation = useSWRMutation<
+    Article,
+    unknown,
+    string,
+    Parameters<typeof createArticle>[0]
+  >(
+    "/articles",
+    (_url: string, { arg }: { arg: Parameters<typeof createArticle>[0] }) =>
+      createArticle(arg),
+    {
+      onSuccess: () => {
+        toast.success("Article created");
+        invalidateArticles();
+      },
+      onError: (err: unknown) => {
+        logger.error("create article failed", {
+          kind: "admin.article.create",
+          err: String(err),
         });
-      }
-      return { snapshot };
-    },
-    onError: (err, _id, ctx) => {
+        toast.error("Failed to create article.");
+      },
+    }
+  );
+
+  const updateMutation = useSWRMutation<
+    Article,
+    unknown,
+    string,
+    { id: number; values: Parameters<typeof updateArticle>[1] }
+  >(
+    "/articles",
+    (
+      _url: string,
+      { arg }: { arg: { id: number; values: Parameters<typeof updateArticle>[1] } }
+    ) => updateArticle(arg.id, arg.values),
+    {
+      onSuccess: () => {
+        toast.success("Article updated");
+        invalidateArticles();
+      },
+      onError: (err: unknown) => {
+        logger.error("update article failed", {
+          kind: "admin.article.update",
+          err: String(err),
+        });
+        toast.error("Failed to update article.");
+      },
+    }
+  );
+
+  const deleteMutation = useSWRMutation<void, unknown, string, number>(
+    "/articles",
+    (_url: string, { arg }: { arg: number }) => deleteArticle(arg)
+  );
+
+  const handleDelete = async (id: number) => {
+    const snapshot = articlesQuery.data;
+    if (snapshot) {
+      mutate(
+        articlesKey,
+        {
+          ...snapshot,
+          data: snapshot.data.filter((a: Article) => a.articles_id !== id),
+        },
+        false
+      );
+    }
+
+    try {
+      await deleteMutation.trigger(id);
+      toast.success("Article deleted");
+      invalidateArticles();
+    } catch (err) {
       logger.error("delete article failed", {
         kind: "admin.article.delete",
         err: String(err),
       });
-      if (ctx?.snapshot) {
-        queryClient.setQueryData(articlesKey, ctx.snapshot);
+      if (snapshot) {
+        mutate(articlesKey, snapshot, false);
       }
       toast.error("Couldn't delete that article. Restored it.");
-    },
-    onSuccess: () => {
-      toast.success("Article deleted");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
-    },
-  });
+    }
+  };
 
   const data = articlesQuery.data?.data ?? [];
   const limit = articlesQuery.data?.limit ?? 10;
@@ -155,7 +182,7 @@ export function ArticlesAdmin() {
                     <TableCell />
                   </TableRow>
                 ))
-              : data.map((article) => (
+              : data.map((article: Article) => (
                   <TableRow
                     key={article.articles_id}
                     data-testid={`article-row-${article.articles_id}`}
@@ -207,7 +234,7 @@ export function ArticlesAdmin() {
         <Button
           variant="outline"
           size="sm"
-          disabled={page <= 1 || articlesQuery.isFetching}
+          disabled={page <= 1 || articlesQuery.isValidating}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
         >
           ← Previous
@@ -218,7 +245,7 @@ export function ArticlesAdmin() {
         <Button
           variant="outline"
           size="sm"
-          disabled={page >= totalPages || articlesQuery.isFetching}
+          disabled={page >= totalPages || articlesQuery.isValidating}
           onClick={() => setPage((p) => p + 1)}
         >
           Next →
@@ -237,9 +264,9 @@ export function ArticlesAdmin() {
         currentUserId={meQuery.data?.uid ?? ""}
         onSubmit={async (payload) => {
           if (payload.mode === "create") {
-            await createMutation.mutateAsync(payload.values);
+            await createMutation.trigger(payload.values);
           } else {
-            await updateMutation.mutateAsync({
+            await updateMutation.trigger({
               id: payload.id,
               values: payload.values,
             });
@@ -254,10 +281,10 @@ export function ArticlesAdmin() {
         description={`This will remove "${confirming?.title ?? ""}" from the site.`}
         destructive
         confirmLabel="Delete"
-        busy={deleteMutation.isPending}
+        busy={deleteMutation.isMutating}
         onConfirm={() => {
           if (!confirming) return;
-          deleteMutation.mutate(confirming.articles_id);
+          handleDelete(confirming.articles_id);
           setConfirming(null);
         }}
       />

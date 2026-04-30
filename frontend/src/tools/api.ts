@@ -13,16 +13,8 @@ import axios, {
   type AxiosRequestConfig,
 } from "axios";
 
-const PUBLIC_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost/api";
-const SERVER_BASE =
-  process.env.INTERNAL_API_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost/api";
-
-export function apiBaseUrl(): string {
-  return typeof window === "undefined" ? SERVER_BASE : PUBLIC_BASE;
-}
+import { apiBaseUrlPublic, apiBaseUrlServer } from "@/tools/api-base";
+import { ApiError, sanitizeErrorMessage } from "@/tools/api-error";
 
 // Two singletons so server/client requests don't share interceptors. Each is
 // created lazily on first use.
@@ -34,7 +26,7 @@ function getClient(): AxiosInstance {
   if (onServer) {
     if (!serverClient) {
       serverClient = axios.create({
-        baseURL: SERVER_BASE,
+  baseURL: apiBaseUrlServer(),
         withCredentials: true,
         timeout: 30_000,
       });
@@ -43,7 +35,7 @@ function getClient(): AxiosInstance {
   }
   if (!browserClient) {
     browserClient = axios.create({
-      baseURL: PUBLIC_BASE,
+  baseURL: apiBaseUrlPublic(),
       withCredentials: true,
       timeout: 30_000,
     });
@@ -65,24 +57,6 @@ export interface ApiOptions {
   tags?: string[];
 }
 
-export class ApiError extends Error {
-  status: number;
-  body: string;
-  constructor(message: string, status: number, body: string) {
-    super(message);
-    this.status = status;
-    this.body = body;
-    this.name = "ApiError";
-  }
-}
-
-// Sanitize error messages to hide internal API URLs
-function sanitizeErrorMessage(message: string): string {
-  // Hide localhost URLs and internal API paths
-  return message
-    .replace(/https?:\/\/[^\s/]+\/api/gi, "[API]")
-    .replace(/\/api\/\w+/gi, "[endpoint]");
-}
 
 function dataFromOptions(options: ApiOptions): unknown {
   if (options.rawBody !== undefined) return options.rawBody;
@@ -125,6 +99,9 @@ export async function apiFetch<T>(
     // Axios only ends up here for network failures, timeouts, and aborts —
     // validateStatus above means non-2xx never throws.
     const ax = err as AxiosError;
+    if (!ax) {
+      throw new ApiError("Unknown error occurred", 0, "");
+    }
     // ECONNREFUSED = Connection refused (backend not running)
     // ENOTFOUND = DNS resolution failed
     // ETIMEDOUT = Connection timeout
@@ -134,6 +111,10 @@ export async function apiFetch<T>(
     const message = ax.message || "network error";
     const sanitized = sanitizeErrorMessage(`${method} ${path} failed: ${message}`);
     throw new ApiError(sanitized, isNetworkError ? 0 : ax.response?.status || 0, "");
+  }
+
+  if (!response) {
+    throw new ApiError("No response from server", 0, "");
   }
 
   if (response.status >= 200 && response.status < 300) {
@@ -146,13 +127,15 @@ export async function apiFetch<T>(
   const bodyText =
     typeof response.data === "string"
       ? response.data
-      : (() => {
+      : response.data
+      ? (() => {
           try {
             return JSON.stringify(response.data);
           } catch {
             return String(response.data);
           }
-        })();
+        })()
+      : "";
 
   const sanitized = sanitizeErrorMessage(`${method} ${path} failed: ${response.status}`);
   throw new ApiError(sanitized, response.status, bodyText);

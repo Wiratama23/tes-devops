@@ -114,8 +114,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Pass environment variables during build so they're embedded correctly
+        - NEXT_PUBLIC_API_BASE_URL=/api
+        - INTERNAL_API_URL=http://nginx/api
     restart: unless-stopped
     environment:
+      # These are for runtime, but build args take precedence for Next.js
       - NEXT_PUBLIC_API_BASE_URL=/api
       - INTERNAL_API_URL=http://nginx/api
       - NODE_ENV=production

@@ -1,20 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
+import { SWRConfig } from "swr";
 
 import { ArticlesAdmin } from "@/components/admin/ArticlesAdmin";
 import { server } from "../msw/server";
 
 function renderWithClient() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
   return render(
-    <QueryClientProvider client={client}>
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <ArticlesAdmin />
-    </QueryClientProvider>
+    </SWRConfig>
   );
 }
 

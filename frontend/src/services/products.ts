@@ -11,11 +11,11 @@ import type {
 interface ListOptions {
   page?: number;
   // Only the server-side calls (SSG/ISR) pass `revalidate`. CSR callers using
-  // TanStack Query rely on its cache instead.
+  // SWR rely on its cache instead.
   revalidate?: number | false;
   tag?: string;
-  // Forwarded from TanStack Query so cancelled queries actually abort the
-  // underlying axios request instead of leaving it in-flight.
+  // Forwarded from SWR so cancelled queries actually abort the underlying
+  // axios request instead of leaving it in-flight.
   signal?: AbortSignal;
 }
 

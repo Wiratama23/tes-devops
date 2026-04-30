@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { RichTextRenderer } from "@/components/articles/RichTextRenderer";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ApiError } from "@/tools/api";
+import { ApiError } from "@/tools/api-error";
 import { getArticle } from "@/services/articles";
 
 export const revalidate = 60;

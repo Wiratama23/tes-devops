@@ -2,35 +2,34 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { ArticleCardSkeleton } from "@/components/articles/ArticleCardSkeleton";
 import { ProductCard } from "@/components/products/ProductCard";
 import { ProductCardSkeleton } from "@/components/products/ProductCardSkeleton";
 import { Button } from "@/components/ui/button";
-import { listArticles } from "@/services/articles";
-import { listProducts } from "@/services/products";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { listArticles } from "@/services/client/articles";
+import { listProducts } from "@/services/client/products";
+import type { Article, PaginatedArticles, PaginatedProducts, Product } from "@/types/api";
 
 function FeaturedProducts() {
-  const queryClient = useQueryClient();
+  const { mutate } = useSWRConfig();
+  const productsKey = "/products?page=1";
   
   // Prefetch on mount for better UX
   useEffect(() => {
-    queryClient.prefetchQuery({
-      queryKey: ["products", 1],
-      queryFn: () => listProducts({ page: 1 }),
-      staleTime: 10 * 60 * 1000,
-    });
-  }, [queryClient]);
+    void mutate(productsKey, listProducts({ page: 1 }), { revalidate: false });
+  }, [mutate, productsKey]);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["products", 1],
-    queryFn: () => listProducts({ page: 1 }),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    // Disable automatic refetch on window focus for homepage
-    refetchOnWindowFocus: false,
-  });
+  const { data, isLoading, error } = useSWR<PaginatedProducts>(
+    productsKey,
+    () => listProducts({ page: 1 }),
+    {
+      dedupingInterval: 10 * 60 * 1000,
+      revalidateOnFocus: false,
+    }
+  );
 
   if (isLoading) {
     return (
@@ -42,7 +41,7 @@ function FeaturedProducts() {
     );
   }
 
-  if (isError || !data?.data || data.data.length === 0) {
+  if (error || !data?.data || data.data.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No products available yet.</p>
     );
@@ -51,7 +50,7 @@ function FeaturedProducts() {
   const items = data.data.slice(0, 4);
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((product, idx) => (
+      {items.map((product: Product, idx: number) => (
         <ProductCard
           key={product.product_id}
           product={product}
@@ -63,24 +62,22 @@ function FeaturedProducts() {
 }
 
 function LatestArticles() {
-  const queryClient = useQueryClient();
+  const { mutate } = useSWRConfig();
+  const articlesKey = "/articles?page=1";
   
   // Prefetch on mount for better UX
   useEffect(() => {
-    queryClient.prefetchQuery({
-      queryKey: ["articles", 1],
-      queryFn: () => listArticles({ page: 1 }),
-      staleTime: 10 * 60 * 1000,
-    });
-  }, [queryClient]);
+    void mutate(articlesKey, listArticles({ page: 1 }), { revalidate: false });
+  }, [mutate, articlesKey]);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["articles", 1],
-    queryFn: () => listArticles({ page: 1 }),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    // Disable automatic refetch on window focus for homepage
-    refetchOnWindowFocus: false,
-  });
+  const { data, isLoading, error } = useSWR<PaginatedArticles>(
+    articlesKey,
+    () => listArticles({ page: 1 }),
+    {
+      dedupingInterval: 10 * 60 * 1000,
+      revalidateOnFocus: false,
+    }
+  );
 
   if (isLoading) {
     return (
@@ -92,7 +89,7 @@ function LatestArticles() {
     );
   }
 
-  if (isError || !data?.data || data.data.length === 0) {
+  if (error || !data?.data || data.data.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No articles published yet.
@@ -103,7 +100,7 @@ function LatestArticles() {
   const items = data.data.slice(0, 3);
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      {items.map((article) => (
+      {items.map((article: Article) => (
         <ArticleCard key={article.articles_id} article={article} />
       ))}
     </div>
@@ -159,7 +156,7 @@ export default function HomePage() {
               Featured products
             </h2>
             <p className="text-sm text-muted-foreground">
-              A handful of items pulled live from the Go API at build time.
+              A handful of items pulled live from the Go API at runtime.
             </p>
           </div>
           <Button asChild variant="link" className="hidden sm:inline-flex">

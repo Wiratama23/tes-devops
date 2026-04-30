@@ -41,7 +41,6 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: [
       "lucide-react",
-      "@tanstack/react-query",
       "@radix-ui/react-dialog",
       "@radix-ui/react-select",
       "@radix-ui/react-tabs",

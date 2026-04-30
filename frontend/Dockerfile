@@ -21,7 +21,13 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all source files
 COPY . .
 
-# Disable Next.js telemetry during build
+# Accept build arguments for environment variables
+ARG NEXT_PUBLIC_API_BASE_URL=/api
+ARG INTERNAL_API_URL=http://nginx/api
+
+# Set environment variables for the build
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+ENV INTERNAL_API_URL=${INTERNAL_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the Next.js application

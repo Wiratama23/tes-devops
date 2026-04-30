@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import useSWR, { useSWRConfig } from "swr";
+import useSWRMutation from "swr/mutation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -21,92 +22,119 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { logger } from "@/tools/logger";
-import { me } from "@/services/auth";
+import { me } from "@/services/client/auth";
 import {
   createProduct,
   deleteProduct,
   listProducts,
   updateProduct,
-} from "@/services/products";
-import type { PaginatedProducts, Product } from "@/types/api";
+} from "@/services/client/products";
+import type { AuthUser, PaginatedProducts, Product } from "@/types/api";
 
 export function ProductsAdmin() {
-  const queryClient = useQueryClient();
+  const { mutate } = useSWRConfig();
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Product | undefined>(undefined);
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState<Product | null>(null);
 
-  const meQuery = useQuery({
-    queryKey: ["auth", "me"],
-    queryFn: ({ signal }) => me({ signal }),
-    staleTime: Infinity,
+  const meQuery = useSWR<AuthUser>("/auth/me", () => me(), {
+    revalidateOnFocus: false,
+    dedupingInterval: 10 * 60 * 1000,
   });
 
-  const productsKey = useMemo(() => ["products", "page", page] as const, [page]);
+  const productsKey = useMemo(() => `/products?page=${page}`, [page]);
 
-  const productsQuery = useQuery({
-    queryKey: productsKey,
-    queryFn: ({ signal }) => listProducts({ page, signal }),
-  });
+  const productsQuery = useSWR<PaginatedProducts>(productsKey, () =>
+    listProducts({ page })
+  );
 
-  const createMutation = useMutation({
-    mutationFn: createProduct,
-    onSuccess: () => {
-      toast.success("Product created");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
-    onError: (err) => {
-      logger.error("create product failed", { kind: "admin.product.create", err: String(err) });
-      toast.error("Failed to create product.");
-    },
-  });
+  const invalidateProducts = () =>
+    mutate(
+      (key: string | readonly unknown[]) =>
+        typeof key === "string" && key.startsWith("/products")
+    );
 
-  const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      values,
-    }: {
-      id: string;
-      values: Parameters<typeof updateProduct>[1];
-    }) => updateProduct(id, values),
-    onSuccess: () => {
-      toast.success("Product updated");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
-    onError: (err) => {
-      logger.error("update product failed", { kind: "admin.product.update", err: String(err) });
-      toast.error("Failed to update product.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteProduct,
-    onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ["products"] });
-      const snapshot = queryClient.getQueryData<PaginatedProducts>(productsKey);
-      if (snapshot) {
-        queryClient.setQueryData<PaginatedProducts>(productsKey, {
-          ...snapshot,
-          data: snapshot.data.filter((p) => p.product_id !== id),
+  const createMutation = useSWRMutation<
+    Product,
+    unknown,
+    string,
+    Parameters<typeof createProduct>[0]
+  >(
+    "/products",
+    (_url: string, { arg }: { arg: Parameters<typeof createProduct>[0] }) =>
+      createProduct(arg),
+    {
+      onSuccess: () => {
+        toast.success("Product created");
+        invalidateProducts();
+      },
+      onError: (err: unknown) => {
+        logger.error("create product failed", {
+          kind: "admin.product.create",
+          err: String(err),
         });
-      }
-      return { snapshot };
-    },
-    onError: (err, _id, ctx) => {
+        toast.error("Failed to create product.");
+      },
+    }
+  );
+
+  const updateMutation = useSWRMutation<
+    Product,
+    unknown,
+    string,
+    { id: string; values: Parameters<typeof updateProduct>[1] }
+  >(
+    "/products",
+    (
+      _url: string,
+      { arg }: { arg: { id: string; values: Parameters<typeof updateProduct>[1] } }
+    ) => updateProduct(arg.id, arg.values),
+    {
+      onSuccess: () => {
+        toast.success("Product updated");
+        invalidateProducts();
+      },
+      onError: (err: unknown) => {
+        logger.error("update product failed", {
+          kind: "admin.product.update",
+          err: String(err),
+        });
+        toast.error("Failed to update product.");
+      },
+    }
+  );
+
+  const deleteMutation = useSWRMutation<void, unknown, string, string>(
+    "/products",
+    (_url: string, { arg }: { arg: string }) => deleteProduct(arg)
+  );
+
+  const handleDelete = async (id: string) => {
+    const snapshot = productsQuery.data;
+    if (snapshot) {
+      mutate(
+        productsKey,
+        {
+          ...snapshot,
+          data: snapshot.data.filter((p: Product) => p.product_id !== id),
+        },
+        false
+      );
+    }
+
+    try {
+      await deleteMutation.trigger(id);
+      toast.success("Product deleted");
+      invalidateProducts();
+    } catch (err) {
       logger.error("delete product failed", { kind: "admin.product.delete", err: String(err) });
-      if (ctx?.snapshot) {
-        queryClient.setQueryData(productsKey, ctx.snapshot);
+      if (snapshot) {
+        mutate(productsKey, snapshot, false);
       }
       toast.error("Couldn't delete that product. Restored it.");
-    },
-    onSuccess: () => {
-      toast.success("Product deleted");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
-  });
+    }
+  };
 
   const data = productsQuery.data?.data ?? [];
 
@@ -157,7 +185,7 @@ export function ProductsAdmin() {
                     <TableCell />
                   </TableRow>
                 ))
-              : data.map((product) => (
+              : data.map((product: Product) => (
                   <TableRow
                     key={product.product_id}
                     data-testid={`product-row-${product.product_id}`}
@@ -227,7 +255,7 @@ export function ProductsAdmin() {
         <Button
           variant="outline"
           size="sm"
-          disabled={page <= 1 || productsQuery.isFetching}
+          disabled={page <= 1 || productsQuery.isValidating}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
         >
           ← Previous
@@ -236,7 +264,7 @@ export function ProductsAdmin() {
         <Button
           variant="outline"
           size="sm"
-          disabled={data.length < (productsQuery.data?.limit ?? 10) || productsQuery.isFetching}
+          disabled={data.length < (productsQuery.data?.limit ?? 10) || productsQuery.isValidating}
           onClick={() => setPage((p) => p + 1)}
         >
           Next →
@@ -255,9 +283,9 @@ export function ProductsAdmin() {
         currentUserId={meQuery.data?.uid ?? ""}
         onSubmit={async (payload) => {
           if (payload.mode === "create") {
-            await createMutation.mutateAsync(payload.values);
+            await createMutation.trigger(payload.values);
           } else {
-            await updateMutation.mutateAsync({
+            await updateMutation.trigger({
               id: payload.id,
               values: payload.values,
             });
@@ -272,10 +300,10 @@ export function ProductsAdmin() {
         description={`This will remove "${confirming?.product_name ?? ""}" from the catalog.`}
         destructive
         confirmLabel="Delete"
-        busy={deleteMutation.isPending}
+        busy={deleteMutation.isMutating}
         onConfirm={() => {
           if (!confirming) return;
-          deleteMutation.mutate(confirming.product_id);
+          handleDelete(confirming.product_id);
           setConfirming(null);
         }}
       />

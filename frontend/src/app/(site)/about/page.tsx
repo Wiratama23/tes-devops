@@ -63,7 +63,7 @@ export default function AboutPage() {
           <li>Go 1.26 · chi · pgx · Coraza WAF · jwtauth</li>
           <li>Next.js 16 (App Router) · React 19 · TypeScript 7 (tsgo)</li>
           <li>Tailwind v4 · Shadcn UI · Framer Motion · Sonner</li>
-          <li>TanStack Query · Zod · React Hook Form · Tiptap</li>
+          <li>SWR · Zod · React Hook Form · Tiptap</li>
         </ul>
       </section>
     </div>

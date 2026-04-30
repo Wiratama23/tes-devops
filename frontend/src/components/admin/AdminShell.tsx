@@ -7,7 +7,8 @@ import {
   Package,
   ShoppingBag,
 } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -18,7 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { logger } from "@/tools/logger";
 import { cn } from "@/tools/utils";
-import { logout, me, refreshToken } from "@/services/auth";
+import { logout, me, refreshToken } from "@/services/client/auth";
+import type { AuthUser } from "@/types/api";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,30 +41,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const lastActivityRefreshRef = useRef<number>(0);
 
   // Check if user is authenticated
-  const { data: user, isLoading, isError } = useQuery({
-    queryKey: ["auth", "me"],
-    queryFn: () => me(),
-    retry: false,
+  const {
+    data: user,
+    error,
+    isLoading,
+  } = useSWR<AuthUser>("/auth/me", () => me(), {
+    shouldRetryOnError: false,
+    revalidateOnFocus: false,
   });
 
   // Mutation to logout
-  const logoutMutation = useMutation({
-    mutationFn: logout,
+  const logoutMutation = useSWRMutation("/auth/logout", () => logout(), {
     onSuccess: () => {
       toast.success("Signed out");
       router.replace("/admin/login");
       router.refresh();
     },
-    onError: (err) => {
+    onError: (err: unknown) => {
       logger.error("logout failed", { kind: "logout", err: String(err) });
       toast.error("Couldn't sign out — try again.");
     },
   });
 
   // Mutation to refresh token
-  const refreshMutation = useMutation({
-    mutationFn: refreshToken,
-    onError: (err) => {
+  const refreshMutation = useSWRMutation("/auth/refresh", () => refreshToken(), {
+    onError: (err: unknown) => {
       logger.error("token refresh failed", { kind: "token_refresh", err: String(err) });
       // If refresh fails, redirect to login
       router.replace("/admin/login");
@@ -75,7 +78,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
     // Refresh token periodically (every 30 minutes)
     refreshIntervalRef.current = setInterval(() => {
-      refreshMutation.mutate();
+      refreshMutation.trigger();
     }, REFRESH_INTERVAL);
 
     // Handle user activity — only resets the inactivity timeout.
@@ -88,14 +91,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       }
       inactivityTimeoutRef.current = setTimeout(() => {
         // If no activity for 55 minutes, logout
-        logoutMutation.mutate();
+        logoutMutation.trigger();
       }, INACTIVITY_TIMEOUT);
 
       // Throttle the refresh call
       const now = Date.now();
       if (now - lastActivityRefreshRef.current >= ACTIVITY_THROTTLE) {
         lastActivityRefreshRef.current = now;
-        refreshMutation.mutate();
+        refreshMutation.trigger();
       }
     };
 
@@ -107,7 +110,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
     // Initial inactivity timeout
     inactivityTimeoutRef.current = setTimeout(() => {
-      logoutMutation.mutate();
+      logoutMutation.trigger();
     }, INACTIVITY_TIMEOUT);
 
     return () => {
@@ -122,10 +125,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isLoading && isError) {
+    if (!isLoading && error) {
       router.replace("/admin/login");
     }
-  }, [isLoading, isError, router]);
+  }, [isLoading, error, router]);
 
   if (isLoading) {
     return (
@@ -135,7 +138,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isError || !user) {
+  if (error || !user) {
     return null;
   }
 
@@ -177,8 +180,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => logoutMutation.mutate()}
-              disabled={logoutMutation.isPending}
+              onClick={() => logoutMutation.trigger()}
+              disabled={logoutMutation.isMutating}
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sign out

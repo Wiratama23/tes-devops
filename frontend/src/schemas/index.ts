@@ -19,7 +19,11 @@ export const productCreateSchema = z.object({
     .string()
     .regex(/^\d+(\.\d{1,2})?$/, "Price must be a number with up to 2 decimals"),
   product_type: z.string().min(1, "Product type is required").max(8),
-  image_path: z.string().min(1, "Image path is required"),
+  image_path: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal("")),
 });
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 

@@ -1,6 +1,6 @@
-import { apiBaseUrlPublic } from "@/tools/api-base";
-import { clientFetch } from "@/tools/client-api";
 import type { UploadResponse } from "@/types/api";
+import { clientFetch } from "@/tools/client-api";
+import { apiBaseUrlPublic } from "@/tools/api-base";
 
 export async function uploadImage(file: File): Promise<UploadResponse> {
   const form = new FormData();

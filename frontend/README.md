@@ -148,7 +148,7 @@ Services are configured to communicate with the backend API:
 - Authentication endpoints
 - File upload endpoints
 
-Configure the API base URL in `src/tools/api.ts`
+Configure the API base URL in `src/tools/api-base.ts`
 
 ## 🎨 Styling
 
@@ -162,7 +162,7 @@ Key dependencies:
 - **next** - React framework
 - **react** & **react-dom** - UI library
 - **typescript** - Type safety
-- **@tanstack/react-query** - Server state management
+- **swr** - Server state management
 - **vitest** - Unit testing
 - **msw** - API mocking
 - **eslint** - Code linting

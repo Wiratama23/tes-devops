@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import useSWRMutation from "swr/mutation";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -11,10 +11,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/tools/api";
+import { ApiError } from "@/tools/api-error";
 import { logger } from "@/tools/logger";
 import { loginSchema, type LoginInput } from "@/schemas";
-import { login } from "@/services/auth";
+import { login } from "@/services/client/auth";
+import type { LoginResponse } from "@/types/api";
 
 export function LoginForm() {
   const router = useRouter();
@@ -30,9 +31,24 @@ export function LoginForm() {
     defaultValues: { username: "", password: "" },
   });
 
-  const mutation = useMutation({
-    mutationFn: login,
-    onSuccess: (data) => {
+  const mutation = useSWRMutation<
+    LoginResponse,
+    ApiError,
+    string,
+    LoginInput
+  >(
+    "/auth/login",
+    (_url: string, { arg }: { arg: LoginInput }) => login(arg),
+    {
+  onSuccess: (data: LoginResponse) => {
+      if (!data?.user) {
+        logger.error("login response missing user", {
+          kind: "auth",
+          response: data,
+        });
+        toast.error("Login failed. Please try again.");
+        return;
+      }
       if (!data.user.is_admin) {
         toast.error("This account is not an admin.");
         return;
@@ -41,13 +57,14 @@ export function LoginForm() {
       router.replace(next);
       router.refresh();
     },
-    onError: (err) => {
+    onError: (err: unknown) => {
       logger.warn("login failed", {
         kind: "auth",
         status: err instanceof ApiError ? err.status : 0,
       });
     },
-  });
+    }
+  );
 
   const errorMessage =
     mutation.error instanceof ApiError && mutation.error.status === 401
@@ -58,7 +75,9 @@ export function LoginForm() {
 
   return (
     <form
-      onSubmit={handleSubmit((values) => mutation.mutate(values))}
+      onSubmit={handleSubmit((values) => {
+        void mutation.trigger(values).catch(() => undefined);
+      })}
       className="space-y-4"
     >
       {errorMessage ? (
@@ -101,9 +120,9 @@ export function LoginForm() {
         <Button
           type="submit"
           className="flex-1"
-          disabled={mutation.isPending}
+          disabled={mutation.isMutating}
         >
-          {mutation.isPending ? "Signing in…" : "Sign in"}
+          {mutation.isMutating ? "Signing in…" : "Sign in"}
         </Button>
       </div>
     </form>

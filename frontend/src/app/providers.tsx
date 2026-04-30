@@ -1,13 +1,12 @@
 "use client";
 
-import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
+import { SWRConfig } from "swr";
 
 import { Toaster } from "@/components/ui/sonner";
-import { getQueryClient } from "@/tools/query-client";
-import { me } from "@/services/auth";
+import { me } from "@/services/client/auth";
+import { clientFetch } from "@/tools/client-api";
 
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -28,7 +27,11 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [client] = useState(() => getQueryClient());
+  const [swrConfig] = useState(() => ({
+    fetcher: (key: string) => clientFetch(key),
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  }));
 
   return (
     <ThemeProvider
@@ -37,15 +40,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <QueryClientProvider client={client}>
+      <SWRConfig value={swrConfig}>
         <AuthInitializer>
           {children}
           <Toaster />
-          {process.env.NODE_ENV === "development" ? (
-            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
-          ) : null}
         </AuthInitializer>
-      </QueryClientProvider>
+      </SWRConfig>
     </ThemeProvider>
   );
 }

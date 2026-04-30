@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SmartImage } from "@/components/site/SmartImage";
-import { ApiError } from "@/tools/api";
+import { ApiError } from "@/tools/api-error";
 import { getProduct } from "@/services/products";
 
 // ISR: revalidate detail pages on the same cadence as the listing.

@@ -5,7 +5,7 @@ export const metadata = {
 };
 
 // Forced dynamic so the dashboard always reflects the latest data. CSR is
-// powered by TanStack Query inside <DashboardStats />.
+// powered by SWR inside <DashboardStats />.
 export const dynamic = "force-dynamic";
 
 export default function DashboardPage() {
@@ -17,7 +17,7 @@ export default function DashboardPage() {
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Live counts pulled from the Go API via TanStack Query.
+          Live counts pulled from the Go API via SWR.
         </p>
       </header>
 

@@ -16,6 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o api-server ./cmd/api
 # Build the Go binary for the Seeder
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o seeder ./cmd/seed
 
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o admin-seeder ./cmd/adminseed
+
 # -- Stage 2: Run --
 FROM alpine:latest  
 
@@ -27,6 +29,7 @@ COPY migrations ./migrations
 # Copy BOTH compiled binaries from the builder stage
 COPY --from=builder /app/api-server .
 COPY --from=builder /app/seeder .
+COPY --from=builder /app/admin-seeder .
 
 # Expose the port your Go app runs on
 EXPOSE 8080
