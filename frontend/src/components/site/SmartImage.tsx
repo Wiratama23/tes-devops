@@ -1,7 +1,7 @@
 "use client";
 
 import Image, { type ImageProps } from "next/image";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 import { resolveImageUrl } from "@/services/uploads";
 
@@ -18,6 +18,15 @@ interface SmartImageProps extends Omit<ImageProps, "src"> {
 export function SmartImage({ imagePath, alt, ...rest }: SmartImageProps) {
   const initial = resolveImageUrl(imagePath);
   const [src, setSrc] = useState(initial);
+  const [failureCount, setFailureCount] = useState(0);
+
+  const handleImageError = useCallback(() => {
+    // Only try fallback once to avoid infinite loops
+    if (src !== FALLBACK && failureCount === 0) {
+      setSrc(FALLBACK);
+      setFailureCount(1);
+    }
+  }, [src, failureCount]);
 
   return (
     <Image
@@ -25,9 +34,7 @@ export function SmartImage({ imagePath, alt, ...rest }: SmartImageProps) {
       src={src}
       alt={alt}
       quality={85}
-      onError={() => {
-        if (src !== FALLBACK) setSrc(FALLBACK);
-      }}
+      onError={handleImageError}
     />
   );
 }

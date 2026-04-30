@@ -76,6 +76,14 @@ export class ApiError extends Error {
   }
 }
 
+// Sanitize error messages to hide internal API URLs
+function sanitizeErrorMessage(message: string): string {
+  // Hide localhost URLs and internal API paths
+  return message
+    .replace(/https?:\/\/[^\s/]+\/api/gi, "[API]")
+    .replace(/\/api\/\w+/gi, "[endpoint]");
+}
+
 function dataFromOptions(options: ApiOptions): unknown {
   if (options.rawBody !== undefined) return options.rawBody;
   if (options.body !== undefined) return options.body;
@@ -117,8 +125,15 @@ export async function apiFetch<T>(
     // Axios only ends up here for network failures, timeouts, and aborts —
     // validateStatus above means non-2xx never throws.
     const ax = err as AxiosError;
+    // ECONNREFUSED = Connection refused (backend not running)
+    // ENOTFOUND = DNS resolution failed
+    // ETIMEDOUT = Connection timeout
+    const isNetworkError = ax.code === "ECONNREFUSED" || 
+                           ax.code === "ENOTFOUND" || 
+                           ax.code === "ETIMEDOUT";
     const message = ax.message || "network error";
-    throw new ApiError(`${method} ${path} failed: ${message}`, 0, "");
+    const sanitized = sanitizeErrorMessage(`${method} ${path} failed: ${message}`);
+    throw new ApiError(sanitized, isNetworkError ? 0 : ax.response?.status || 0, "");
   }
 
   if (response.status >= 200 && response.status < 300) {
@@ -139,9 +154,6 @@ export async function apiFetch<T>(
           }
         })();
 
-  throw new ApiError(
-    `${method} ${path} failed: ${response.status}`,
-    response.status,
-    bodyText
-  );
+  const sanitized = sanitizeErrorMessage(`${method} ${path} failed: ${response.status}`);
+  throw new ApiError(sanitized, response.status, bodyText);
 }

@@ -15,9 +15,10 @@ const nextConfig: NextConfig = {
     removeConsole:
       process.env.NODE_ENV === "production" ? { exclude: ["error"] } : false,
   },
+  // Optimize images more aggressively
   images: {
     formats: ["image/avif", "image/webp"],
-    qualities: [25,50,75,85],
+    qualities: [25, 50, 75, 85],
     remotePatterns: [
       {
         protocol: "http",
@@ -32,12 +33,22 @@ const nextConfig: NextConfig = {
         hostname: "nginx",
       },
     ],
+    // Cache images for 1 year (immutable)
+    minimumCacheTTL: 31536000,
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   experimental: {
     optimizePackageImports: [
       "lucide-react",
       "@tanstack/react-query",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-select",
+      "@radix-ui/react-tabs",
+      "@radix-ui/react-tooltip",
     ],
+    // Optimize bundle size
+    optimizeCss: true,
   },
   poweredByHeader: false,
 };

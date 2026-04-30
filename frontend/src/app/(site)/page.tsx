@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { Suspense } from "react";
+import { useEffect } from "react";
 
 import { ArticleCard } from "@/components/articles/ArticleCard";
 import { ArticleCardSkeleton } from "@/components/articles/ArticleCardSkeleton";
@@ -8,29 +10,45 @@ import { ProductCardSkeleton } from "@/components/products/ProductCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { listArticles } from "@/services/articles";
 import { listProducts } from "@/services/products";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-// Revalidate every 10 minutes. Falls back to stale content if backend unavailable during build.
-export const revalidate = 600;
+function FeaturedProducts() {
+  const queryClient = useQueryClient();
+  
+  // Prefetch on mount for better UX
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ["products", 1],
+      queryFn: () => listProducts({ page: 1 }),
+      staleTime: 10 * 60 * 1000,
+    });
+  }, [queryClient]);
 
-export const metadata = {
-  title: "Home",
-};
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["products", 1],
+    queryFn: () => listProducts({ page: 1 }),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    // Disable automatic refetch on window focus for homepage
+    refetchOnWindowFocus: false,
+  });
 
-async function FeaturedProducts() {
-  let data;
-  try {
-    data = await listProducts({ revalidate: 600 });
-  } catch {
-    // If backend is unavailable during build, render empty state
-    data = { data: [] };
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <ProductCardSkeleton key={i} />
+        ))}
+      </div>
+    );
   }
 
-  const items = data.data.slice(0, 4);
-  if (items.length === 0) {
+  if (isError || !data?.data || data.data.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No products available yet.</p>
     );
   }
+
+  const items = data.data.slice(0, 4);
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((product, idx) => (
@@ -44,23 +62,45 @@ async function FeaturedProducts() {
   );
 }
 
-async function LatestArticles() {
-  let data;
-  try {
-    data = await listArticles({ revalidate: 600 });
-  } catch {
-    // If backend is unavailable during build, render empty state
-    data = { data: [] };
+function LatestArticles() {
+  const queryClient = useQueryClient();
+  
+  // Prefetch on mount for better UX
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ["articles", 1],
+      queryFn: () => listArticles({ page: 1 }),
+      staleTime: 10 * 60 * 1000,
+    });
+  }, [queryClient]);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["articles", 1],
+    queryFn: () => listArticles({ page: 1 }),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    // Disable automatic refetch on window focus for homepage
+    refetchOnWindowFocus: false,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-3">
+        {[...Array(3)].map((_, i) => (
+          <ArticleCardSkeleton key={i} />
+        ))}
+      </div>
+    );
   }
 
-  const items = data.data.slice(0, 3);
-  if (items.length === 0) {
+  if (isError || !data?.data || data.data.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No articles published yet.
       </p>
     );
   }
+
+  const items = data.data.slice(0, 3);
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {items.map((article) => (
@@ -126,9 +166,7 @@ export default function HomePage() {
             <Link href="/products">View all →</Link>
           </Button>
         </div>
-        <Suspense fallback={<ProductsSkeletonRow />}>
-          <FeaturedProducts />
-        </Suspense>
+        <FeaturedProducts />
       </section>
 
       <section className="space-y-6">
@@ -145,30 +183,8 @@ export default function HomePage() {
             <Link href="/articles">View all →</Link>
           </Button>
         </div>
-        <Suspense fallback={<ArticlesSkeletonRow />}>
-          <LatestArticles />
-        </Suspense>
+        <LatestArticles />
       </section>
-    </div>
-  );
-}
-
-function ProductsSkeletonRow() {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <ProductCardSkeleton key={i} />
-      ))}
-    </div>
-  );
-}
-
-function ArticlesSkeletonRow() {
-  return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <ArticleCardSkeleton key={i} />
-      ))}
     </div>
   );
 }
