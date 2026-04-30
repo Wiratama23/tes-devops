@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,34 +18,34 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
 	"rwiratama.com/m/internal/database"
 	"rwiratama.com/m/internal/handlers"
 	czm "rwiratama.com/m/internal/middleware"
+	"rwiratama.com/m/internal/utils"
 )
 
 var tokenAuth *jwtauth.JWTAuth
 
 func init() {
 	// Load .env file from project root
-	if err := godotenv.Load("../../../.env"); err != nil {
-		log.Printf("No .env file found, using environment variables: %v", err)
-	}
+	// if err := godotenv.Load("../../../.env"); err != nil {
+	// 	log.Printf("No .env file found, using environment variables: %v", err)
+	// }
 
-	secret := os.Getenv("JWT_SECRET")
+	secret := utils.GetEnv("JWT_SECRET") //os.Getenv("JWT_SECRET")
 	if secret == "" {
 		log.Fatal("JWT_SECRET environment variable is required")
 	}
-	tokenAuth = jwtauth.New("HS256", []byte(secret), nil)
+	tokenAuth = utils.GetJWT(secret) //jwtauth.New("HS256", []byte(secret), nil)
 }
 
 func main() {
 	ctx := context.Background()
 
 	// Load configuration from environment
-	databaseURL := os.Getenv("DATABASE_URL")
-	port := os.Getenv("PORT")
+	databaseURL := utils.GetEnv("DATABASE_URL") //os.Getenv("DATABASE_URL")
+	port := utils.GetEnv("PORT")                //os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
@@ -49,6 +53,25 @@ func main() {
 	if databaseURL == "" {
 		log.Fatal("DATABASE_URL environment variable is required")
 	}
+
+	// Resolve uploads dir & default-image source. Both are optional in
+	// development; if UPLOADS_DIR is empty the upload routes will return 500
+	// when hit, which is the desired behaviour for misconfigured deployments.
+	uploadsDir := utils.GetEnv("UPLOADS_DIR")
+	if uploadsDir == "" {
+		uploadsDir = "/var/lib/api/uploads"
+	}
+	defaultImageSrc := utils.GetEnv("DEFAULT_IMAGE_SOURCE")
+	if defaultImageSrc == "" {
+		// Resolved relative to the working directory of the running binary.
+		defaultImageSrc = "assets/default_image.jpg"
+	}
+	if err := handlers.EnsureDefaultImage(uploadsDir, defaultImageSrc); err != nil {
+		log.Printf("warning: failed to seed default image into uploads dir: %v", err)
+	}
+
+	// Cookie + secure flag for the auth handler.
+	cookieSecure, _ := strconv.ParseBool(utils.GetEnv("AUTH_COOKIE_SECURE"))
 
 	// Initialize database connection
 	pool, err := database.NewPool(ctx, databaseURL)
@@ -73,6 +96,13 @@ func main() {
 	userHandler := handlers.NewUserHandler(pool)
 	articleHandler := handlers.NewArticleHandler(pool)
 	productHandler := handlers.NewProductHandler(pool)
+	authHandler := handlers.NewAuthHandler(pool, tokenAuth, handlers.AuthHandlerConfig{
+		TokenTTL:   1 * time.Hour,
+		CookieName: czm.AuthCookieName,
+		Secure:     cookieSecure,
+	})
+	uploadHandler := handlers.NewUploadHandler(uploadsDir)
+	logHandler := handlers.NewLogHandler()
 
 	// Initialize Coraza WAF
 	waf, err := czm.InitializeWAF()
@@ -91,7 +121,7 @@ func main() {
 
 	router.Use(cors.Handler(cors.Options{
 		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
-		AllowedOrigins: []string{"https://*", "http://*"},
+		AllowedOrigins: utils.GetAllowedOrigins(), // Use this to allow specific origin hosts from environment variable
 		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
@@ -101,6 +131,32 @@ func main() {
 	}))
 
 	router.Route("/api", func(r chi.Router) {
+
+		// /api/auth
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/login", authHandler.Login)
+			r.Post("/logout", authHandler.Logout)
+			r.Group(func(r chi.Router) {
+				r.Use(czm.JWTVerifier(tokenAuth))
+				r.Use(jwtauth.Authenticator(tokenAuth))
+				r.Get("/me", authHandler.Me)
+				r.Post("/refresh", authHandler.Refresh)
+			})
+		})
+
+		// /api/logs - frontend error reporting (open; rate-limited at nginx).
+		r.Post("/logs", logHandler.Receive)
+
+		// /api/assets/{filename} - serves uploaded images (public).
+		r.Get("/assets/{filename}", uploadHandler.ServeAsset)
+
+		// /api/uploads - admin-only image upload.
+		r.Route("/uploads", func(r chi.Router) {
+			r.Use(czm.JWTVerifier(tokenAuth))
+			r.Use(jwtauth.Authenticator(tokenAuth))
+			r.Use(czm.RequireAdmin)
+			r.Post("/images", uploadHandler.UploadImage)
+		})
 
 		// /api/users
 		r.Route("/users", func(r chi.Router) {
@@ -113,7 +169,7 @@ func main() {
 			})
 			// Protected
 			r.Group(func(r chi.Router) {
-				r.Use(jwtauth.Verifier(tokenAuth))
+				r.Use(czm.JWTVerifier(tokenAuth))
 				r.Use(jwtauth.Authenticator(tokenAuth))
 				r.Put("/{uid}", userHandler.UpdateUser)
 				r.Delete("/{uid}", userHandler.DeleteUser)
@@ -129,7 +185,7 @@ func main() {
 			})
 			// Protected
 			r.Group(func(r chi.Router) {
-				r.Use(jwtauth.Verifier(tokenAuth))
+				r.Use(czm.JWTVerifier(tokenAuth))
 				r.Use(jwtauth.Authenticator(tokenAuth))
 				r.Post("/", articleHandler.CreateArticle)
 				r.Put("/{id}", articleHandler.UpdateArticle)
@@ -146,7 +202,7 @@ func main() {
 			})
 			// Protected
 			r.Group(func(r chi.Router) {
-				r.Use(jwtauth.Verifier(tokenAuth))
+				r.Use(czm.JWTVerifier(tokenAuth))
 				r.Use(jwtauth.Authenticator(tokenAuth))
 				r.Post("/", productHandler.CreateProduct)
 				r.Put("/{id}", productHandler.UpdateProduct)
@@ -155,38 +211,6 @@ func main() {
 		})
 	})
 
-	// Depreciated Routes (before adding JWT auth, now protected by auth middleware above)
-	// // User routes
-	// router.Route("/api/users", func(r chi.Router) {
-	// 	r.Post("/", userHandler.CreateUser)
-	// 	r.Get("/", userHandler.GetAllUsers)
-	// 	r.Get("/{uid}", userHandler.GetUser)
-	// 	r.Put("/{uid}", userHandler.UpdateUser)
-	// 	r.Delete("/{uid}", userHandler.DeleteUser)
-
-	// 	r.Route("/{uid}/articles", func(r chi.Router) {
-	// 		r.Get("/", articleHandler.GetUserArticles)
-	// 	})
-	// })
-
-	// // Article routes
-	// router.Route("/api/articles", func(r chi.Router) {
-	// 	r.Post("/", articleHandler.CreateArticle)
-	// 	r.With(czm.Paginate).Get("/", articleHandler.GetAllArticles)
-	// 	r.Get("/{id}", articleHandler.GetArticle)
-	// 	r.Put("/{id}", articleHandler.UpdateArticle)
-	// 	r.Delete("/{id}", articleHandler.DeleteArticle)
-	// })
-
-	// // Product routes
-	// router.Route("/api/products", func(r chi.Router) {
-	// 	r.Post("/", productHandler.CreateProduct)
-	// 	r.With(czm.Paginate).Get("/", productHandler.GetAllProducts)
-	// 	r.Get("/{id}", productHandler.GetProductByID)
-	// 	r.Put("/{id}", productHandler.UpdateProduct)
-	// 	r.Delete("/{id}", productHandler.DeleteProduct)
-	// })
-
 	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("OK")); err != nil {
@@ -194,13 +218,43 @@ func main() {
 		}
 	})
 
-	// Wrap router with Coraza WAF (old way, now using middleware instead)
-	// wrappedRouter := czm.WrapHandlerWithWAF(waf, router)
+	// Start server with graceful shutdown. The deferred pool.Close earlier in
+	// main() runs after Shutdown returns, so the pgx pool drains in-flight
+	// queries instead of getting yanked.
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: router,
+	}
 
-	// Start server
-	fmt.Printf("Server listening on :%s\n", port)
-	if err := http.ListenAndServe(":"+port, router); err != nil {
-		log.Fatalf("Server error: %v", err)
+	serverErrCh := make(chan error, 1)
+	go func() {
+		fmt.Printf("Server listening on :%s\n", port)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErrCh <- err
+			return
+		}
+		serverErrCh <- nil
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErrCh:
+		if err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+		return
+	case sig := <-quit:
+		log.Printf("received %s, draining in-flight requests…", sig)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("forced shutdown: %v", err)
+	} else {
+		log.Println("server shut down cleanly")
 	}
 }
 

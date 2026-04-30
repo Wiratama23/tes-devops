@@ -1,0 +1,42 @@
+name: Frontend Unit Tests
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/next-test.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  test:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+    
+    # This ensures all 'run' commands execute inside your frontend directory
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5 # Or specify a version like '1.1.0'
+
+      - name: Install dependencies
+        run: bun install
+        # Bun install is so fast we usually don't need caching, 
+        # but setup-bun handles it under the hood if needed!
+
+      - name: Check formatting & linting
+        run: bun run lint
+
+      - name: Run Unit Tests (Vitest)
+        # Using bun test directly since it integrates seamlessly with Vitest
+        run: bun run test

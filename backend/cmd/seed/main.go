@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 	"rwiratama.com/m/internal/database"
 	"rwiratama.com/m/internal/repository"
 )
@@ -36,6 +37,23 @@ func main() {
 	userRepo := repository.NewUserRepository(pool)
 	articleRepo := repository.NewArticleRepository(pool)
 	productRepo := repository.NewProductRepository(pool)
+
+	// 0. Seed admin user. Password is taken from ADMIN_PASSWORD env (defaults
+	// to "admin123" so docker compose works out of the box; rotate via env in
+	// production).
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
+	if adminPassword == "" {
+		adminPassword = "admin123"
+	}
+	adminHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("failed to hash admin password: %v", err)
+	}
+	if _, err := userRepo.CreateWithPassword(ctx, "admin", "admin@example.com", string(adminHash), true); err != nil {
+		log.Printf("admin user may already exist: %v", err)
+	} else {
+		log.Println("Seeded admin user (username=admin)")
+	}
 
 	const seedCount = 5000
 
@@ -67,7 +85,9 @@ func main() {
 		qty := 100
 		price := "29.99"
 		categoryId := "10"
-		imagePath := "assets/default.jpg"
+		// Match the default used by product_handler.go and the file actually
+		// shipped in /assets so frontend resolves to /api/assets/default_image.jpg
+		imagePath := "assets/default_image.jpg"
 
 		_, err = productRepo.Create(ctx, sku, productName, qty, price, categoryId, user.UID, imagePath)
 		if err != nil {
@@ -77,6 +97,16 @@ func main() {
 		// Log progress every 1,000 iterations to keep the console clean
 		if i%1000 == 0 {
 			log.Printf("Successfully seeded %d/%d records...", i, seedCount)
+		}
+	}
+
+	// Refresh the planner statistics that articles/products pagination uses
+	// for an instant approximate count. Without this the very first
+	// /articles page hit on a fresh DB would see reltuples = -1 and report a
+	// total of 0 until autovacuum eventually runs.
+	for _, table := range []string{"articles", "products", "users"} {
+		if _, err := pool.Exec(ctx, "ANALYZE "+table); err != nil {
+			log.Printf("ANALYZE %s failed: %v", table, err)
 		}
 	}
 

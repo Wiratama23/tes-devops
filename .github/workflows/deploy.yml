@@ -10,7 +10,7 @@ env:
 
 jobs:
   verify-tests:
-    name: Verify Backend Tests Passed
+    name: Verify All Tests Passed
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -19,16 +19,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         
-      - name: Check test.yml status
+      - name: Check Backend status
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          CONCLUSION=$(gh run list --workflow="test.yml" --branch=${{ github.ref_name }} --limit 1 --json conclusion -q '.[0].conclusion')
+          CONCLUSION=$(gh run list --workflow="go-test.yml" --branch=${{ github.ref_name }} --limit 1 --json conclusion -q '.[0].conclusion')
           if [ "$CONCLUSION" != "success" ]; then
             echo "Deployment blocked! The latest test run on branch '${{ github.ref_name }}' did not succeed. Status: $CONCLUSION"
             exit 1
           fi
           echo "Tests are cleared! Proceeding to deployment..."
+
+      - name: Check Frontend status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CONCLUSION=$(gh run list --workflow="next-test.yml" --branch=${{ github.ref_name }} --limit 1 --json conclusion -q '.[0].conclusion')
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Deployment blocked! The latest frontend test run on branch '${{ github.ref_name }}' did not succeed. Status: $CONCLUSION"
+            exit 1
+          fi
+          echo "Frontend tests are cleared! Proceeding to deployment..."
+
   verify-docker:
     uses: ./.github/workflows/docker-test.yml
     needs: verify-tests
@@ -67,6 +79,14 @@ jobs:
           file: ./backend/migrations/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-goose:latest
+      
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest
 
   deploy:
     needs: build-and-push
@@ -83,6 +103,7 @@ jobs:
       - name: Create .env file
         run: |
           touch .env
+          echo "ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGIN }}" >> .env
           echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
           echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
           echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env

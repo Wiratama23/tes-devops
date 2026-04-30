@@ -8,7 +8,7 @@ services:
       # Live-mounts your files so you can see HTML changes instantly
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/mime.types:/etc/nginx/mime.types:ro
-      - ./frontend:/usr/share/nginx/html:ro
+      # - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       api:
         condition: service_healthy
@@ -25,8 +25,16 @@ services:
       - "8080:8080"
     environment:
       - JWT_SECRET=${JWT_SECRET}
-      - DATABASE_URL=${DOCKER_DB_URL}
-      - PORT=8080 
+      - DATABASE_URL=postgres://development_user:admin123@postgres:5432/devdb?sslmode=disable
+      - PORT=8080
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:4000,http://localhost}
+      - UPLOADS_DIR=/var/lib/api/uploads
+      - DEFAULT_IMAGE_SOURCE=/etc/api/assets/default_image.jpg
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-false}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    volumes:
+      - uploads_dev:/var/lib/api/uploads
+      - ./assets/default_image.jpg:/etc/api/assets/default_image.jpg:ro
     depends_on:
       postgres:
        condition: service_healthy
@@ -47,7 +55,6 @@ services:
     image: postgres:16-alpine
     container_name: postgres_db_dev
     ports:
-      # Exposed locally so you can connect database GUI tools (like DBeaver or pgAdmin)
       - "5432:5432"
     environment:
       POSTGRES_USER: development_user
@@ -82,8 +89,24 @@ services:
       postgres:
        condition: service_healthy
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=/api
+      - INTERNAL_API_URL=http://nginx/api
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - backend-network
+
 volumes:
   pgdata_dev: {}
+  uploads_dev: {}
 
 networks:
   db:

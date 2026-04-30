@@ -22,7 +22,7 @@ func (r *UserRepository) Create(ctx context.Context, username, email string) (*m
 	query := `
 		INSERT INTO users (username, email)
 		VALUES ($1, $2)
-		RETURNING uid, username, email, created_at, updated_at
+		RETURNING uid, username, email, is_admin, created_at, updated_at
 	`
 
 	var user models.User
@@ -30,6 +30,32 @@ func (r *UserRepository) Create(ctx context.Context, username, email string) (*m
 		&user.UID,
 		&user.Username,
 		&user.Email,
+		&user.IsAdmin,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return &user, nil
+}
+
+// CreateWithPassword inserts a new user with a hashed password and admin flag.
+// The caller is responsible for hashing the password (bcrypt) before calling.
+func (r *UserRepository) CreateWithPassword(ctx context.Context, username, email, passwordHash string, isAdmin bool) (*models.User, error) {
+	query := `
+		INSERT INTO users (username, email, password_hash, is_admin)
+		VALUES ($1, $2, $3, $4)
+		RETURNING uid, username, email, is_admin, created_at, updated_at
+	`
+
+	var user models.User
+	err := r.pool.QueryRow(ctx, query, username, email, passwordHash, isAdmin).Scan(
+		&user.UID,
+		&user.Username,
+		&user.Email,
+		&user.IsAdmin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -43,7 +69,7 @@ func (r *UserRepository) Create(ctx context.Context, username, email string) (*m
 // GetByID retrieves a user by UID
 func (r *UserRepository) GetByID(ctx context.Context, uid uuid.UUID) (*models.User, error) {
 	query := `
-		SELECT uid, username, email, created_at, updated_at
+		SELECT uid, username, email, is_admin, created_at, updated_at
 		FROM users
 		WHERE uid = $1
 	`
@@ -53,6 +79,7 @@ func (r *UserRepository) GetByID(ctx context.Context, uid uuid.UUID) (*models.Us
 		&user.UID,
 		&user.Username,
 		&user.Email,
+		&user.IsAdmin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -66,10 +93,38 @@ func (r *UserRepository) GetByID(ctx context.Context, uid uuid.UUID) (*models.Us
 	return &user, nil
 }
 
+// GetCredentialsByUsername retrieves a user's password hash plus auth flags.
+// Used by the auth handler when verifying login credentials. The returned
+// struct is not exposed via the API.
+func (r *UserRepository) GetCredentialsByUsername(ctx context.Context, username string) (*models.UserCredentials, error) {
+	query := `
+		SELECT uid, username, email, password_hash, is_admin
+		FROM users
+		WHERE username = $1
+	`
+
+	var creds models.UserCredentials
+	err := r.pool.QueryRow(ctx, query, username).Scan(
+		&creds.UID,
+		&creds.Username,
+		&creds.Email,
+		&creds.PasswordHash,
+		&creds.IsAdmin,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user credentials: %w", err)
+	}
+
+	return &creds, nil
+}
+
 // GetAll retrieves all users
 func (r *UserRepository) GetAll(ctx context.Context) ([]models.User, error) {
 	query := `
-		SELECT uid, username, email, created_at, updated_at
+		SELECT uid, username, email, is_admin, created_at, updated_at
 		FROM users
 		ORDER BY created_at DESC
 	`
@@ -86,6 +141,7 @@ func (r *UserRepository) GetAll(ctx context.Context) ([]models.User, error) {
 			&user.UID,
 			&user.Username,
 			&user.Email,
+			&user.IsAdmin,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -104,7 +160,7 @@ func (r *UserRepository) Update(ctx context.Context, uid uuid.UUID, username, em
 		UPDATE users
 		SET username = $2, email = $3, updated_at = CURRENT_TIMESTAMP
 		WHERE uid = $1
-		RETURNING uid, username, email, created_at, updated_at
+		RETURNING uid, username, email, is_admin, created_at, updated_at
 	`
 
 	var user models.User
@@ -112,6 +168,7 @@ func (r *UserRepository) Update(ctx context.Context, uid uuid.UUID, username, em
 		&user.UID,
 		&user.Username,
 		&user.Email,
+		&user.IsAdmin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)

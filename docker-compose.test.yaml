@@ -27,6 +27,13 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - DATABASE_URL=${DOCKER_DB_URL}
       - PORT=${PORT}
+      - UPLOADS_DIR=/var/lib/api/uploads
+      - DEFAULT_IMAGE_SOURCE=/etc/api/assets/default_image.jpg
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-false}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    volumes:
+      - uploads_test:/var/lib/api/uploads
+      - ./assets/default_image.jpg:/etc/api/assets/default_image.jpg:ro
     depends_on:
       postgres:
        condition: service_healthy
@@ -88,8 +95,30 @@ services:
       postgres:
        condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # Optional: containerized frontend (kept in lock-step with prod compose).
+  # Mirrors the block in docker-compose.yaml so the test stack stays parallel
+  # to production once the frontend is containerized.
+  # ---------------------------------------------------------------------------
+  # frontend:
+  #   image: ghcr.io/wiratama23/tes-devops-frontend:latest
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   environment:
+  #     - NEXT_PUBLIC_API_BASE_URL=/api
+  #     - INTERNAL_API_URL=http://nginx/api
+  #     - NODE_ENV=production
+  #   depends_on:
+  #     api:
+  #       condition: service_healthy
+  #   networks:
+  #     - backend-network
+
 volumes:
   pgdata: {}
+  uploads_test: {}
 
 networks:
   db:

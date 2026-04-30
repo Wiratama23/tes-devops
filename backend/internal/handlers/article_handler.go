@@ -17,9 +17,10 @@ type ArticleHandler struct {
 }
 
 type PaginatedArticlesResponse struct {
-	Data   []models.Article `json:"data"`
-	Limit  int              `json:"limit"`
-	Offset int              `json:"offset"`
+	Data       []models.Article `json:"data"`
+	TotalCount int              `json:"total_count"`
+	Limit      int              `json:"limit"`
+	Offset     int              `json:"offset"`
 }
 
 func NewArticleHandler(pool repository.PgxPool) *ArticleHandler {
@@ -91,7 +92,7 @@ func (h *ArticleHandler) GetAllArticles(w http.ResponseWriter, r *http.Request) 
 	limit := pagination.Limit
 	offset := (pagination.Page - 1) * pagination.Limit
 
-	articles, err := h.repo.GetAllWithPagination(r.Context(), limit, offset)
+	articles, totalCount, err := h.repo.GetAllWithPagination(r.Context(), limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -102,9 +103,10 @@ func (h *ArticleHandler) GetAllArticles(w http.ResponseWriter, r *http.Request) 
 	}
 
 	resp := PaginatedArticlesResponse{
-		Data:   articles,
-		Limit:  limit,
-		Offset: offset,
+		Data:       articles,
+		TotalCount: totalCount,
+		Limit:      limit,
+		Offset:     offset,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

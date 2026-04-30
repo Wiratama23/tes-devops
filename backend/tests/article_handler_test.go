@@ -44,6 +44,8 @@ const (
 	`
 	articleDeleteSQL = `DELETE FROM articles WHERE articles_id = $1`
 
+	articleCountSQL = `SELECT GREATEST(reltuples, 0)::BIGINT FROM pg_class WHERE relname = 'articles'`
+
 	articlePaginatedSQL = `
 		SELECT articles_id, uid, title, article_text, date_created, updated_at
 		FROM articles
@@ -191,6 +193,8 @@ func TestArticleHandler_GetAllArticles_PaginationShape(t *testing.T) {
 
 	// WithArgs(limit, offset) should match the pagination logic in the handler, which
 	// Default limit=10, page=2 -> offset=10*(2-1)=10
+	mock.ExpectQuery(articleCountSQL).
+		WillReturnRows(pgxmock.NewRows([]string{"count"}).AddRow(42))
 	mock.ExpectQuery(articlePaginatedSQL).
 		WithArgs(10, 10).
 		WillReturnRows(articleRows().AddRow(1, uid, "A", "B", now, now))
@@ -215,12 +219,17 @@ func TestArticleHandler_GetAllArticles_PaginationShape(t *testing.T) {
 	if len(got.Data) != 1 {
 		t.Errorf("expected 1 article, got %d", len(got.Data))
 	}
+	if got.TotalCount != 42 {
+		t.Errorf("expected total_count=42, got %d", got.TotalCount)
+	}
 }
 
 func TestArticleHandler_GetAllArticles_EmptyReturnsArray(t *testing.T) {
 	mock := newMockPool(t)
 
 	// No pagination context set on request -> handler falls back to page=1, limit=10
+	mock.ExpectQuery(articleCountSQL).
+		WillReturnRows(pgxmock.NewRows([]string{"count"}).AddRow(0))
 	mock.ExpectQuery(articlePaginatedSQL).
 		WithArgs(10, 0).
 		WillReturnRows(articleRows())
@@ -248,13 +257,16 @@ func TestArticleHandler_GetAllArticles_EmptyReturnsArray(t *testing.T) {
 	if got.Limit != 10 || got.Offset != 0 {
 		t.Errorf("expected default pagination, got limit=%d offset=%d", got.Limit, got.Offset)
 	}
+	if got.TotalCount != 0 {
+		t.Errorf("expected total_count=0, got %d", got.TotalCount)
+	}
 }
 
 func TestArticleHandler_GetAllArticles_RepoError(t *testing.T) {
 	mock := newMockPool(t)
 
-	mock.ExpectQuery(articlePaginatedSQL).
-		WithArgs(10, 0).
+	// Count fails -> handler must surface 500.
+	mock.ExpectQuery(articleCountSQL).
 		WillReturnError(errors.New("db down"))
 
 	h := handlers.NewArticleHandler(mock)
