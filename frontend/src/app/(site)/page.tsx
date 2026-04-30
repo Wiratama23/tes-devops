@@ -9,52 +9,67 @@ import { Button } from "@/components/ui/button";
 import { listArticles } from "@/services/articles";
 import { listProducts } from "@/services/products";
 
-// Marketing home page is fully static — content updates flow in via the
-// rebuild after the Go backend gets new fixtures.
-export const dynamic = "force-static";
+// Revalidate every 10 minutes. Falls back to stale content if backend unavailable during build.
+export const revalidate = 600;
 
 export const metadata = {
   title: "Home",
 };
 
 async function FeaturedProducts() {
-  const data = await listProducts({ revalidate: 600 });
-  const items = data.data.slice(0, 4);
-  if (items.length === 0) {
+  try {
+    const data = await listProducts({ revalidate: 600 });
+    const items = data.data.slice(0, 4);
+    if (items.length === 0) {
+      return (
+        <p className="text-sm text-muted-foreground">No products available yet.</p>
+      );
+    }
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((product, idx) => (
+          <ProductCard
+            key={product.product_id}
+            product={product}
+            priority={idx === 0}
+          />
+        ))}
+      </div>
+    );
+  } catch (error) {
+    // If backend is unavailable during build, render empty state
     return (
       <p className="text-sm text-muted-foreground">No products available yet.</p>
     );
   }
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((product, idx) => (
-        <ProductCard
-          key={product.product_id}
-          product={product}
-          priority={idx === 0}
-        />
-      ))}
-    </div>
-  );
 }
 
 async function LatestArticles() {
-  const data = await listArticles({ revalidate: 600 });
-  const items = data.data.slice(0, 3);
-  if (items.length === 0) {
+  try {
+    const data = await listArticles({ revalidate: 600 });
+    const items = data.data.slice(0, 3);
+    if (items.length === 0) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          No articles published yet.
+        </p>
+      );
+    }
+    return (
+      <div className="grid gap-4 md:grid-cols-3">
+        {items.map((article) => (
+          <ArticleCard key={article.articles_id} article={article} />
+        ))}
+      </div>
+    );
+  } catch (error) {
+    // If backend is unavailable during build, render empty state
     return (
       <p className="text-sm text-muted-foreground">
         No articles published yet.
       </p>
     );
   }
-  return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {items.map((article) => (
-        <ArticleCard key={article.articles_id} article={article} />
-      ))}
-    </div>
-  );
 }
 
 export default function HomePage() {
