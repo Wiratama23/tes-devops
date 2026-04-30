@@ -9,16 +9,22 @@ import { Button } from "@/components/ui/button";
 import { listArticles } from "@/services/articles";
 import { listProducts } from "@/services/products";
 
-// Marketing home page is fully static — content updates flow in via the
-// rebuild after the Go backend gets new fixtures.
-export const dynamic = "force-static";
+// Revalidate every 10 minutes. Falls back to stale content if backend unavailable during build.
+export const revalidate = 600;
 
 export const metadata = {
   title: "Home",
 };
 
 async function FeaturedProducts() {
-  const data = await listProducts({ revalidate: 600 });
+  let data;
+  try {
+    data = await listProducts({ revalidate: 600 });
+  } catch {
+    // If backend is unavailable during build, render empty state
+    data = { data: [] };
+  }
+
   const items = data.data.slice(0, 4);
   if (items.length === 0) {
     return (
@@ -39,7 +45,14 @@ async function FeaturedProducts() {
 }
 
 async function LatestArticles() {
-  const data = await listArticles({ revalidate: 600 });
+  let data;
+  try {
+    data = await listArticles({ revalidate: 600 });
+  } catch {
+    // If backend is unavailable during build, render empty state
+    data = { data: [] };
+  }
+
   const items = data.data.slice(0, 3);
   if (items.length === 0) {
     return (
