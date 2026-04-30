@@ -17,59 +17,57 @@ export const metadata = {
 };
 
 async function FeaturedProducts() {
+  let data;
   try {
-    const data = await listProducts({ revalidate: 600 });
-    const items = data.data.slice(0, 4);
-    if (items.length === 0) {
-      return (
-        <p className="text-sm text-muted-foreground">No products available yet.</p>
-      );
-    }
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((product, idx) => (
-          <ProductCard
-            key={product.product_id}
-            product={product}
-            priority={idx === 0}
-          />
-        ))}
-      </div>
-    );
-  } catch (error) {
+    data = await listProducts({ revalidate: 600 });
+  } catch {
     // If backend is unavailable during build, render empty state
+    data = { data: [] };
+  }
+
+  const items = data.data.slice(0, 4);
+  if (items.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No products available yet.</p>
     );
   }
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((product, idx) => (
+        <ProductCard
+          key={product.product_id}
+          product={product}
+          priority={idx === 0}
+        />
+      ))}
+    </div>
+  );
 }
 
 async function LatestArticles() {
+  let data;
   try {
-    const data = await listArticles({ revalidate: 600 });
-    const items = data.data.slice(0, 3);
-    if (items.length === 0) {
-      return (
-        <p className="text-sm text-muted-foreground">
-          No articles published yet.
-        </p>
-      );
-    }
-    return (
-      <div className="grid gap-4 md:grid-cols-3">
-        {items.map((article) => (
-          <ArticleCard key={article.articles_id} article={article} />
-        ))}
-      </div>
-    );
-  } catch (error) {
+    data = await listArticles({ revalidate: 600 });
+  } catch {
     // If backend is unavailable during build, render empty state
+    data = { data: [] };
+  }
+
+  const items = data.data.slice(0, 3);
+  if (items.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No articles published yet.
       </p>
     );
   }
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {items.map((article) => (
+        <ArticleCard key={article.articles_id} article={article} />
+      ))}
+    </div>
+  );
 }
 
 export default function HomePage() {
